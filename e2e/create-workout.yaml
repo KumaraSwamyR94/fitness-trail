@@ -1,0 +1,43 @@
+appId: com.uniquedev.fitnesstrail
+---
+- launchApp:
+    clearState: true
+- assertVisible: Fitness Trail
+- tapOn:
+    id: start-new-session
+- assertVisible: New Session
+- tapOn:
+    id: save-session
+- assertVisible: Exercises
+- tapOn:
+    id: add-exercise
+- tapOn:
+    id: exercise-name
+- inputText: Barbell Squat
+- tapOn:
+    id: create-exercise
+- assertVisible: Barbell Squat
+- tapOn: Barbell Squat
+- tapOn:
+    id: add-set
+- tapOn:
+    id: set-weight
+- eraseText
+- inputText: "100"
+- tapOn:
+    id: set-reps
+- eraseText
+- inputText: "5"
+- tapOn:
+    id: set-tut
+- eraseText
+- inputText: "20"
+- tapOn:
+    id: save-set
+- assertVisible: "220.46"
+- stopApp
+- launchApp
+- assertVisible: Fitness Trail
+- tapOn: ".* Session"
+- tapOn: Barbell Squat
+- assertVisible: "220.46"

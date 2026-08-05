@@ -1,0 +1,16 @@
+Fitness Trail is an offline-first strength training journal designed to keep your complete workout history clear, fast, and private.
+
+Plan or backdate sessions from a monthly calendar, build each workout exercise by exercise, and log every working set with repetitions, weight, and time under tension. Enter weight in kilograms or pounds and Fitness Trail keeps both values available with precise conversion.
+
+Features:
+• Monthly training calendar with multiple sessions per day
+• Fast session, exercise, and set logging
+• Reorderable exercises and reusable exercise suggestions
+• Kilogram and pound conversion
+• Time-under-tension tracking
+• Editing and confirmed deletion throughout your journal
+• Light and dark themes
+• Offline local storage with no account required
+• Accessible controls, large-text support, and reduced-motion behavior
+
+Your journal stays available even when your connection does not. Follow the trail your training leaves behind.
