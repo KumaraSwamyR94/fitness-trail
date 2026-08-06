@@ -142,9 +142,12 @@ export default function SessionScreen(): React.ReactElement {
   const renderExercise = ({ item, drag, isActive }: RenderItemParams<ExerciseSummary>) => {
     const lastWeight = item.lastInputUnit === 'lb' ? item.lastWeightLb : item.lastWeightKg;
     const lastUnit = item.lastInputUnit ?? 'kg';
-    const summary = item.setCount
+    const setSummary = item.setCount
       ? `${item.setCount} ${item.setCount === 1 ? 'set' : 'sets'} · Last: ${formatWeight(lastWeight ?? 0)} ${lastUnit} × ${item.lastReps}`
       : 'No sets logged';
+    const summary = item.muscleGroupName
+      ? `${item.muscleGroupName} · ${setSummary}`
+      : setSummary;
     const editing = editingId === item.id;
 
     return (

@@ -8,8 +8,9 @@ import { FormField } from '@/components/form-field';
 import { SheetScaffold } from '@/components/sheet-scaffold';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
+import { muscleGroupRepository } from '@/data/muscle-group-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
-import type { ExerciseCatalogEntry } from '@/types/workout';
+import type { ExerciseCatalogEntry, MuscleGroupCatalogEntry } from '@/types/workout';
 import { successFeedback } from '@/utils/feedback';
 import { normalizeName, validateName } from '@/utils/names';
 import { track } from '@/utils/telemetry';
@@ -21,7 +22,12 @@ export default function AddExerciseScreen(): React.ReactElement {
   const { notifyDataChanged } = useDataChange();
   const [query, setQuery] = React.useState('');
   const [suggestions, setSuggestions] = React.useState<ExerciseCatalogEntry[]>([]);
-  const [error, setError] = React.useState<string | null>(null);
+  const [muscleGroupQuery, setMuscleGroupQuery] = React.useState('');
+  const [muscleGroupSuggestions, setMuscleGroupSuggestions] = React.useState<
+    MuscleGroupCatalogEntry[]
+  >([]);
+  const [exerciseError, setExerciseError] = React.useState<string | null>(null);
+  const [muscleGroupError, setMuscleGroupError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -37,27 +43,67 @@ export default function AddExerciseScreen(): React.ReactElement {
     };
   }, [db, query]);
 
-  const exactMatch = suggestions.find((item) => item.normalizedName === normalizeName(query));
+  React.useEffect(() => {
+    let active = true;
+    const timeout = setTimeout(() => {
+      void muscleGroupRepository.searchCatalog(db, muscleGroupQuery).then((rows) => {
+        if (active) setMuscleGroupSuggestions(rows);
+      });
+    }, 80);
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [db, muscleGroupQuery]);
 
-  const add = async (name: string) => {
-    const validation = validateName(name);
-    if (validation) {
-      setError(validation);
+  const exactMatch = suggestions.find((item) => item.normalizedName === normalizeName(query));
+  const exactMuscleGroup = muscleGroupSuggestions.find(
+    (item) => item.normalizedName === normalizeName(muscleGroupQuery),
+  );
+
+  const add = async (name: string, muscleGroupName: string) => {
+    const exerciseValidation = validateName(name);
+    const muscleGroupValidation = validateName(muscleGroupName);
+    setExerciseError(exerciseValidation);
+    setMuscleGroupError(
+      muscleGroupValidation === 'Enter a name.'
+        ? 'Choose or enter a muscle group.'
+        : muscleGroupValidation,
+    );
+    if (exerciseValidation || muscleGroupValidation) {
       return;
     }
     setSaving(true);
-    setError(null);
+    setExerciseError(null);
+    setMuscleGroupError(null);
     try {
-      const exercise = await exerciseRepository.create(db, sessionId, name);
+      const exercise = await exerciseRepository.create(db, sessionId, name, muscleGroupName);
       notifyDataChanged();
-      track('exercise_created', { exerciseId: exercise.id });
+      track('exercise_created', {
+        exerciseId: exercise.id,
+        muscleGroupId: exercise.muscleGroupId,
+      });
       successFeedback();
       router.back();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to add exercise.');
+      setExerciseError(caught instanceof Error ? caught.message : 'Unable to add exercise.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const addCurrentExercise = () => {
+    void add(
+      exactMatch?.displayName ?? query,
+      exactMuscleGroup?.displayName ?? muscleGroupQuery,
+    );
+  };
+
+  const selectExercise = (item: ExerciseCatalogEntry) => {
+    setQuery(item.displayName);
+    setMuscleGroupQuery(item.muscleGroupName ?? '');
+    setExerciseError(null);
+    setMuscleGroupError(null);
   };
 
   return (
@@ -65,36 +111,111 @@ export default function AddExerciseScreen(): React.ReactElement {
       footer={
         <AppButton
           label={exactMatch ? `Add ${exactMatch.displayName}` : 'Create New Exercise'}
-          onPress={() => void add(exactMatch?.displayName ?? query)}
+          onPress={addCurrentExercise}
           loading={saving}
-          disabled={!query.trim()}
+          disabled={!query.trim() || !muscleGroupQuery.trim()}
           testID="create-exercise"
         />
       }
     >
       <Text selectable style={{ color: theme.colors.textMuted, lineHeight: 21 }}>
-        Search your exercise history or create a reusable new name.
+        Search your exercise history or create a reusable exercise and assign its primary muscle
+        group.
       </Text>
       <FormField
         label="Exercise name"
         value={query}
         onChangeText={(value) => {
           setQuery(value);
-          setError(null);
+          setExerciseError(null);
         }}
         placeholder="e.g. Barbell Bench Press"
         autoFocus
         returnKeyType="done"
         onSubmitEditing={() => {
-          if (query.trim()) void add(exactMatch?.displayName ?? query);
+          if (query.trim() && muscleGroupQuery.trim()) addCurrentExercise();
+          else if (!muscleGroupQuery.trim()) setMuscleGroupError('Choose or enter a muscle group.');
         }}
         maxLength={80}
-        error={error}
+        error={exerciseError}
         testID="exercise-name"
       />
+      <View style={{ gap: 10 }}>
+        <FormField
+          label="Muscle Group"
+          value={muscleGroupQuery}
+          onChangeText={(value) => {
+            setMuscleGroupQuery(value);
+            setMuscleGroupError(null);
+          }}
+          placeholder="e.g. Chest"
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            if (query.trim() && muscleGroupQuery.trim()) addCurrentExercise();
+          }}
+          maxLength={80}
+          error={muscleGroupError}
+          testID="muscle-group"
+        />
+        <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
+          {muscleGroupQuery.trim() ? 'Matching muscle groups' : 'Major muscle groups'}
+        </Text>
+        {muscleGroupSuggestions.length ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {muscleGroupSuggestions.map((item) => {
+              const selected = item.normalizedName === normalizeName(muscleGroupQuery);
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${item.displayName}`}
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    setMuscleGroupQuery(item.displayName);
+                    setMuscleGroupError(null);
+                  }}
+                  style={({ pressed }) => ({
+                    minHeight: 42,
+                    justifyContent: 'center',
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: selected ? theme.colors.accent : theme.colors.border,
+                    backgroundColor: selected
+                      ? theme.colors.accentSoft
+                      : pressed
+                        ? theme.colors.surfaceMuted
+                        : theme.colors.surface,
+                  })}
+                >
+                  <Text
+                    selectable
+                    style={{
+                      color: selected ? theme.colors.accent : theme.colors.text,
+                      fontSize: 14,
+                      fontWeight: '700',
+                    }}
+                  >
+                    {selected ? '✓ ' : ''}{item.displayName}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <Text selectable style={{ color: theme.colors.textMuted }}>
+            No matching muscle group yet.
+          </Text>
+        )}
+        {muscleGroupQuery.trim() && !exactMuscleGroup ? (
+          <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
+            “{muscleGroupQuery.trim()}” will be saved as a reusable muscle group.
+          </Text>
+        ) : null}
+      </View>
       <View style={{ gap: 8 }}>
         <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
-          {query.trim() ? 'Suggestions' : 'Recently used'}
+          {query.trim() ? 'Exercise suggestions' : 'Recently used exercises'}
         </Text>
         {suggestions.length === 0 ? (
           <Text selectable style={{ color: theme.colors.textMuted }}>
@@ -105,8 +226,8 @@ export default function AddExerciseScreen(): React.ReactElement {
             <Pressable
               key={item.id}
               accessibilityRole="button"
-              accessibilityLabel={`Add ${item.displayName}`}
-              onPress={() => void add(item.displayName)}
+              accessibilityLabel={`Select ${item.displayName}${item.muscleGroupName ? `, ${item.muscleGroupName}` : ''}`}
+              onPress={() => selectExercise(item)}
               style={({ pressed }) => ({
                 minHeight: 52,
                 justifyContent: 'center',
@@ -121,6 +242,11 @@ export default function AddExerciseScreen(): React.ReactElement {
               <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>
                 {item.displayName}
               </Text>
+              {item.muscleGroupName ? (
+                <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}>
+                  {item.muscleGroupName}
+                </Text>
+              ) : null}
             </Pressable>
           ))
         )}

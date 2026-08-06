@@ -170,6 +170,7 @@ export default function ExerciseScreen(): React.ReactElement {
       >
         <View style={{ gap: 4, paddingBottom: 6 }}>
           <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+            {exercise?.muscleGroupName ? `${exercise.muscleGroupName} · ` : ''}
             {sets.length} {sets.length === 1 ? 'working set' : 'working sets'}
           </Text>
           <Text selectable style={{ color: theme.colors.text, fontSize: 22, fontWeight: '800' }}>

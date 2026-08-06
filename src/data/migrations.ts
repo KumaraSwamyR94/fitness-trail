@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export const SCHEMA_V1 = `
   CREATE TABLE sessions (
@@ -58,6 +58,45 @@ export const SCHEMA_V1 = `
   PRAGMA user_version = 1;
 `;
 
+export const MIGRATION_V2 = `
+  CREATE TABLE muscle_group_catalog (
+    id TEXT PRIMARY KEY NOT NULL,
+    normalized_name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL CHECK(length(display_name) BETWEEN 1 AND 80),
+    is_predefined INTEGER NOT NULL DEFAULT 0 CHECK(is_predefined IN (0, 1)),
+    use_count INTEGER NOT NULL DEFAULT 0,
+    last_used_at INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  INSERT INTO muscle_group_catalog
+    (id, normalized_name, display_name, is_predefined, use_count, last_used_at, created_at, updated_at)
+  VALUES
+    ('muscle-back', 'back', 'Back', 1, 0, 0, 0, 0),
+    ('muscle-biceps', 'biceps', 'Biceps', 1, 0, 0, 0, 0),
+    ('muscle-calves', 'calves', 'Calves', 1, 0, 0, 0, 0),
+    ('muscle-chest', 'chest', 'Chest', 1, 0, 0, 0, 0),
+    ('muscle-core', 'core', 'Core', 1, 0, 0, 0, 0),
+    ('muscle-forearms', 'forearms', 'Forearms', 1, 0, 0, 0, 0),
+    ('muscle-glutes', 'glutes', 'Glutes', 1, 0, 0, 0, 0),
+    ('muscle-hamstrings', 'hamstrings', 'Hamstrings', 1, 0, 0, 0, 0),
+    ('muscle-quadriceps', 'quadriceps', 'Quadriceps', 1, 0, 0, 0, 0),
+    ('muscle-shoulders', 'shoulders', 'Shoulders', 1, 0, 0, 0, 0),
+    ('muscle-triceps', 'triceps', 'Triceps', 1, 0, 0, 0, 0);
+
+  ALTER TABLE exercise_catalog
+    ADD COLUMN muscle_group_id TEXT REFERENCES muscle_group_catalog(id) ON DELETE SET NULL;
+  ALTER TABLE session_exercises
+    ADD COLUMN muscle_group_id TEXT REFERENCES muscle_group_catalog(id) ON DELETE SET NULL;
+
+  CREATE INDEX muscle_group_catalog_search_idx
+    ON muscle_group_catalog(normalized_name, is_predefined DESC, last_used_at DESC);
+  CREATE INDEX exercise_catalog_muscle_group_idx ON exercise_catalog(muscle_group_id);
+  CREATE INDEX session_exercises_muscle_group_idx ON session_exercises(muscle_group_id);
+  PRAGMA user_version = 2;
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
@@ -65,8 +104,13 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   if (currentVersion >= DATABASE_VERSION) return;
 
   await db.withExclusiveTransactionAsync(async (transaction) => {
+    let version = currentVersion;
     if (currentVersion < 1) {
       await transaction.execAsync(SCHEMA_V1);
+      version = 1;
+    }
+    if (version < 2) {
+      await transaction.execAsync(MIGRATION_V2);
     }
   });
 }
