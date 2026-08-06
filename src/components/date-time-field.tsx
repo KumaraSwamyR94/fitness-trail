@@ -17,17 +17,20 @@ export function DateTimeField({ value, onChange }: DateTimeFieldProps): React.Re
   const [androidMode, setAndroidMode] = React.useState<'date' | 'time' | null>(null);
   const dateLabel = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(value);
   const timeLabel = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(value);
+  const dismissAndroidPicker = () => {
+    if (process.env.EXPO_OS !== 'ios') setAndroidMode(null);
+  };
 
   const picker = (mode: 'date' | 'time') => (
     <DateTimePicker
       value={value}
       mode={mode}
       display={process.env.EXPO_OS === 'ios' ? 'compact' : 'default'}
-      onChange={(_, next) => {
-        if (process.env.EXPO_OS !== 'ios') setAndroidMode(null);
-        if (!next) return;
+      onValueChange={(_, next) => {
+        dismissAndroidPicker();
         onChange(mode === 'date' ? mergeDateAndTime(next, value) : mergeDateAndTime(value, next));
       }}
+      onDismiss={dismissAndroidPicker}
     />
   );
 

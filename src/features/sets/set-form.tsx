@@ -42,6 +42,8 @@ export function SetForm({
   const [errors, setErrors] = React.useState<FieldErrors>({});
 
   React.useEffect(() => {
+    // Keep the editable fields in sync when an asynchronously loaded set arrives.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReps(String(initialValue.reps));
     setWeight(String(initialValue.inputWeight));
     setUnit(initialValue.inputUnit);

@@ -16,7 +16,7 @@ export function SheetScaffold({ children, footer, testID }: SheetScaffoldProps):
   const { compact } = useResponsiveLayout();
   const horizontalPadding = compact ? 14 : 20;
   return (
-    <>
+    <View collapsable={false} style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
@@ -51,6 +51,6 @@ export function SheetScaffold({ children, footer, testID }: SheetScaffoldProps):
           {footer}
         </View>
       </View>
-    </>
+    </View>
   );
 }
