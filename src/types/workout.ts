@@ -19,6 +19,17 @@ export interface ExerciseCatalogEntry {
   id: string;
   normalizedName: string;
   displayName: string;
+  muscleGroupId: string | null;
+  muscleGroupName: string | null;
+  useCount: number;
+  lastUsedAt: number;
+}
+
+export interface MuscleGroupCatalogEntry {
+  id: string;
+  normalizedName: string;
+  displayName: string;
+  isPredefined: boolean;
   useCount: number;
   lastUsedAt: number;
 }
@@ -29,6 +40,8 @@ export interface SessionExercise {
   catalogId: string | null;
   displayName: string;
   normalizedName: string;
+  muscleGroupId: string | null;
+  muscleGroupName: string | null;
   position: number;
   createdAt: number;
   updatedAt: number;
