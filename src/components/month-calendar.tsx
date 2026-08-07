@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
-import { SymbolIcon } from '@/components/symbol-icon';
+import { AppIcon } from '@/components/app-icon';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { useResponsiveLayout } from '@/theme/use-responsive-layout';
 import { buildMonthWeeks, getFirstWeekday, getWeekdayLabels } from '@/utils/dates';
@@ -63,7 +63,7 @@ export function MonthCalendar({
             hitSlop={10}
             style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
           >
-            <SymbolIcon name="chevron.left" fallback="‹" color={theme.colors.text} size={22} />
+            <AppIcon name="chevron-left" color={theme.colors.text} size={22} />
           </Pressable>
           <Text
             selectable
@@ -81,7 +81,7 @@ export function MonthCalendar({
             hitSlop={10}
             style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
           >
-            <SymbolIcon name="chevron.right" fallback="›" color={theme.colors.text} size={22} />
+            <AppIcon name="chevron-right" color={theme.colors.text} size={22} />
           </Pressable>
         </View>
         <View style={{ flexDirection: 'row' }}>

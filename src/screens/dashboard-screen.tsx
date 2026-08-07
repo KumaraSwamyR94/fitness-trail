@@ -143,7 +143,7 @@ export default function DashboardScreen(): React.ReactElement {
         <AppButton
           label="Start New Session"
           onPress={() => router.push('/sessions/new')}
-          icon={{ name: 'plus', fallback: '+' }}
+          icon={{ name: 'plus' }}
           testID="start-new-session"
         />
       </ScrollView>

@@ -1,19 +1,19 @@
 import { Text, View } from 'react-native';
 
-import { SymbolIcon } from '@/components/symbol-icon';
+import { AppIcon, type AppIconProps } from '@/components/app-icon';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { useResponsiveLayout } from '@/theme/use-responsive-layout';
 
 interface EmptyStateProps {
   title: string;
   message: string;
-  icon?: { name: string; fallback: string };
+  icon?: Pick<AppIconProps, 'name'>;
 }
 
 export function EmptyState({
   title,
   message,
-  icon = { name: 'figure.strengthtraining.traditional', fallback: '◇' },
+  icon = { name: 'weight-lifter' },
 }: EmptyStateProps) {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
@@ -32,7 +32,7 @@ export function EmptyState({
           backgroundColor: theme.colors.accentSoft,
         }}
       >
-        <SymbolIcon {...icon} color={theme.colors.accent} size={24} />
+        <AppIcon {...icon} color={theme.colors.accent} size={24} />
       </View>
       <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', textAlign: 'center' }}>
         {title}

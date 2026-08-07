@@ -214,14 +214,14 @@ export default function BmiDashboardScreen(): React.ReactElement {
           <EmptyState
             title="Start your BMI trail"
             message="Add your first measurement to see a current BMI, trend chart, and history."
-            icon={{ name: 'scalemass', fallback: '◉' }}
+            icon={{ name: 'scale-bathroom' }}
           />
         </View>
       )}
 
       <AppButton
         label="Add Measurement"
-        icon={{ name: 'plus', fallback: '+' }}
+        icon={{ name: 'plus' }}
         onPress={() => router.push('/bmi/measurements/new')}
         testID="add-bmi-measurement"
       />

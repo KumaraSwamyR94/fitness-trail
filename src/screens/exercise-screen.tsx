@@ -204,7 +204,7 @@ export default function ExerciseScreen(): React.ReactElement {
         <View style={{ width: '100%', maxWidth: readableContentMaxWidth, paddingHorizontal: horizontalPadding }}>
           <AppButton
             label="Add Set"
-            icon={{ name: 'plus', fallback: '+' }}
+            icon={{ name: 'plus' }}
             onPress={() => router.push({
               pathname: '/sessions/[sessionId]/exercises/[exerciseId]/sets/new',
               params: { sessionId, exerciseId },
