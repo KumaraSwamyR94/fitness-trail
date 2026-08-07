@@ -1,6 +1,8 @@
-Fitness Trail is an offline-first strength training journal designed to keep your complete workout history clear, fast, and private.
+Fitness Trail is an offline-first strength training and BMI journal designed to keep your progress history clear, fast, and private.
 
 Plan or backdate sessions from a monthly calendar, build each workout exercise by exercise, and log every working set with repetitions, weight, and time under tension. Enter weight in kilograms or pounds and Fitness Trail keeps both values available with precise conversion.
+
+Record adult BMI measurements with metric or imperial height and weight, then review your latest result, BMI or weight trends, and a dated measurement history. BMI is shown as a general screening measure and is not a substitute for professional medical advice.
 
 Features:
 • Monthly training calendar with multiple sessions per day
@@ -8,6 +10,8 @@ Features:
 • Reorderable exercises and reusable exercise suggestions
 • Kilogram and pound conversion
 • Time-under-tension tracking
+• Adult BMI and body-weight trend charts
+• Dated BMI measurement history with editing and deletion
 • Editing and confirmed deletion throughout your journal
 • Light and dark themes
 • Offline local storage with no account required

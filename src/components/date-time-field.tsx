@@ -9,9 +9,18 @@ import { mergeDateAndTime } from '@/utils/dates';
 interface DateTimeFieldProps {
   value: Date;
   onChange: (value: Date) => void;
+  label?: string;
+  maximumDate?: Date;
+  error?: string | null;
 }
 
-export function DateTimeField({ value, onChange }: DateTimeFieldProps): React.ReactElement {
+export function DateTimeField({
+  value,
+  onChange,
+  label = 'Date and time',
+  maximumDate,
+  error,
+}: DateTimeFieldProps): React.ReactElement {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
   const [androidMode, setAndroidMode] = React.useState<'date' | 'time' | null>(null);
@@ -25,6 +34,7 @@ export function DateTimeField({ value, onChange }: DateTimeFieldProps): React.Re
     <DateTimePicker
       value={value}
       mode={mode}
+      maximumDate={maximumDate}
       display={process.env.EXPO_OS === 'ios' ? 'compact' : 'default'}
       onValueChange={(_, next) => {
         dismissAndroidPicker();
@@ -37,7 +47,7 @@ export function DateTimeField({ value, onChange }: DateTimeFieldProps): React.Re
   return (
     <View style={{ gap: 8 }}>
       <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
-        Date and time
+        {label}
       </Text>
       {process.env.EXPO_OS === 'ios' ? (
         <View
@@ -97,6 +107,11 @@ export function DateTimeField({ value, onChange }: DateTimeFieldProps): React.Re
           {androidMode ? picker(androidMode) : null}
         </View>
       )}
+      {error ? (
+        <Text selectable accessibilityLiveRegion="polite" style={{ color: theme.colors.danger, fontSize: 13 }}>
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }

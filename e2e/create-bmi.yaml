@@ -1,0 +1,40 @@
+appId: com.uniquedev.fitnesstrail
+---
+- launchApp:
+    clearState: true
+- tapOn: BMI
+- assertVisible: Start your BMI trail
+- tapOn:
+    id: add-bmi-measurement
+- assertVisible: New Measurement
+- tapOn:
+    id: bmi-weight
+- inputText: "70"
+- tapOn:
+    id: bmi-height-cm
+- inputText: "175"
+- tapOn:
+    id: bmi-age
+- inputText: "30"
+- tapOn:
+    id: bmi-gender-woman
+- tapOn:
+    id: save-bmi-measurement
+- assertVisible: "22.9"
+- assertVisible: Healthy weight
+- stopApp
+- launchApp
+- tapOn: BMI
+- assertVisible: "22.9"
+- tapOn: "70.00 kg"
+- assertVisible: Edit Measurement
+- tapOn: Pounds
+- tapOn:
+    id: bmi-weight
+- eraseText
+- inputText: "160"
+- tapOn: Feet & inches
+- tapOn:
+    id: save-bmi-measurement
+- assertVisible: "23.7"
+- assertVisible: "160.00 lb"

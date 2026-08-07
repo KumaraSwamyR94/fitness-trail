@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 export const SCHEMA_V1 = `
   CREATE TABLE sessions (
@@ -97,6 +97,29 @@ export const MIGRATION_V2 = `
   PRAGMA user_version = 2;
 `;
 
+export const MIGRATION_V3 = `
+  CREATE TABLE bmi_measurements (
+    id TEXT PRIMARY KEY NOT NULL,
+    measured_at INTEGER NOT NULL,
+    local_date TEXT NOT NULL,
+    timezone_offset_minutes INTEGER NOT NULL,
+    input_weight REAL NOT NULL CHECK(input_weight > 0),
+    input_weight_unit TEXT NOT NULL CHECK(input_weight_unit IN ('kg', 'lb')),
+    weight_kg REAL NOT NULL CHECK(weight_kg > 0),
+    weight_lb REAL NOT NULL CHECK(weight_lb > 0),
+    input_height_unit TEXT NOT NULL CHECK(input_height_unit IN ('cm', 'ft-in')),
+    height_cm REAL NOT NULL CHECK(height_cm > 0),
+    age_years INTEGER NOT NULL CHECK(age_years BETWEEN 18 AND 150),
+    gender TEXT NOT NULL CHECK(gender IN ('woman', 'man', 'non_binary', 'prefer_not_to_say')),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX bmi_measurements_measured_at_idx
+    ON bmi_measurements(measured_at DESC, created_at DESC);
+  PRAGMA user_version = 3;
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
@@ -111,6 +134,10 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
     }
     if (version < 2) {
       await transaction.execAsync(MIGRATION_V2);
+      version = 2;
+    }
+    if (version < 3) {
+      await transaction.execAsync(MIGRATION_V3);
     }
   });
 }
