@@ -10,18 +10,6 @@ import { DataChangeProvider } from '@/data/data-change-context';
 import { migrateDatabase } from '@/data/migrations';
 import { useAppTheme } from '@/theme/use-app-theme';
 
-const sheetOptions = process.env.EXPO_OS === 'ios'
-  ? {
-      presentation: 'formSheet' as const,
-      sheetGrabberVisible: true,
-      sheetAllowedDetents: [0.65, 1],
-    }
-  : {
-      // Android's native formSheet can render as an empty Material bottom sheet
-      // on some devices. A modal maps to a standard, reliable push presentation.
-      presentation: 'modal' as const,
-    };
-
 function Navigation(): React.ReactElement {
   const theme = useAppTheme();
   return (
@@ -29,34 +17,21 @@ function Navigation(): React.ReactElement {
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
-          headerBackButtonDisplayMode: 'minimal',
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: theme.colors.background },
-          headerTintColor: theme.colors.text,
+          headerShown: false,
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'Fitness Trail', headerLargeTitle: true }} />
-        <Stack.Screen name="sessions/new" options={{ ...sheetOptions, title: 'New Session' }} />
-        <Stack.Screen name="sessions/[sessionId]/index" options={{ title: 'Session' }} />
-        <Stack.Screen name="sessions/[sessionId]/edit" options={{ ...sheetOptions, title: 'Edit Session' }} />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen
-          name="sessions/[sessionId]/exercises/new"
-          options={{ ...sheetOptions, title: 'Add Exercise', sheetAllowedDetents: [0.8, 1] }}
+          name="+not-found"
+          options={{
+            headerShown: true,
+            title: 'Not Found',
+            headerShadowVisible: false,
+            headerStyle: { backgroundColor: theme.colors.background },
+            headerTintColor: theme.colors.text,
+          }}
         />
-        <Stack.Screen
-          name="sessions/[sessionId]/exercises/[exerciseId]/index"
-          options={{ title: 'Exercise' }}
-        />
-        <Stack.Screen
-          name="sessions/[sessionId]/exercises/[exerciseId]/sets/new"
-          options={{ ...sheetOptions, title: 'Add Set' }}
-        />
-        <Stack.Screen
-          name="sessions/[sessionId]/exercises/[exerciseId]/sets/[setId]"
-          options={{ ...sheetOptions, title: 'Edit Set' }}
-        />
-        <Stack.Screen name="+not-found" options={{ title: 'Not Found' }} />
       </Stack>
     </>
   );

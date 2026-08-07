@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { MIGRATION_V2, SCHEMA_V1 } from '@/data/migrations';
+import { MIGRATION_V2, MIGRATION_V3, SCHEMA_V1 } from '@/data/migrations';
 
 function sqlite(database: string, sql: string): string {
   return execFileSync('/usr/bin/sqlite3', [database], {
@@ -18,15 +18,51 @@ describe('SQLite migration and relational integrity', () => {
 
   beforeEach(() => {
     database = path.join(mkdtempSync(path.join(tmpdir(), 'fitness-trail-db-')), 'journal.db');
-    sqlite(database, `${SCHEMA_V1}\n${MIGRATION_V2}`);
+    sqlite(database, `${SCHEMA_V1}\n${MIGRATION_V2}\n${MIGRATION_V3}`);
   });
 
   test('creates the versioned schema and calendar/relationship indexes', () => {
-    expect(sqlite(database, 'PRAGMA user_version;')).toBe('2');
+    expect(sqlite(database, 'PRAGMA user_version;')).toBe('3');
     const indexes = sqlite(database, "SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name;");
     expect(indexes).toContain('muscle_group_catalog_search_idx');
+    expect(indexes).toContain('bmi_measurements_measured_at_idx');
     expect(indexes).toContain('sessions_local_date_idx');
     expect(indexes).toContain('workout_sets_exercise_idx');
+  });
+
+  test('migrates version 2 data without changing workout records', () => {
+    const versionTwoDatabase = path.join(
+      mkdtempSync(path.join(tmpdir(), 'fitness-trail-v2-db-')),
+      'journal.db',
+    );
+    sqlite(versionTwoDatabase, `${SCHEMA_V1}\n${MIGRATION_V2}`);
+    sqlite(versionTwoDatabase, "INSERT INTO sessions VALUES ('s1', 'Session', 1, '2026-08-03', -330, 1, 1);");
+
+    sqlite(versionTwoDatabase, MIGRATION_V3);
+
+    expect(sqlite(versionTwoDatabase, 'PRAGMA user_version;')).toBe('3');
+    expect(sqlite(versionTwoDatabase, 'SELECT name FROM sessions WHERE id = "s1";')).toBe('Session');
+    expect(sqlite(versionTwoDatabase, "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bmi_measurements';")).toBe('bmi_measurements');
+  });
+
+  test('stores multiple same-day BMI measurements in timestamp order and supports updates and deletion', () => {
+    sqlite(database, `
+      INSERT INTO bmi_measurements VALUES
+        ('b1', 100, '2026-08-06', -330, 70, 'kg', 70, 154.3234, 'cm', 175, 30, 'woman', 1, 1),
+        ('b2', 200, '2026-08-06', -330, 155, 'lb', 70.3068, 155, 'ft-in', 175.26, 30, 'woman', 2, 2);
+    `);
+    expect(sqlite(database, 'SELECT id FROM bmi_measurements ORDER BY measured_at DESC;')).toBe('b2\nb1');
+    sqlite(database, "UPDATE bmi_measurements SET age_years = 31, updated_at = 3 WHERE id = 'b1';");
+    expect(sqlite(database, "SELECT age_years || ':' || updated_at FROM bmi_measurements WHERE id = 'b1';")).toBe('31:3');
+    sqlite(database, "DELETE FROM bmi_measurements WHERE id = 'b2';");
+    expect(sqlite(database, 'SELECT COUNT(*) FROM bmi_measurements;')).toBe('1');
+  });
+
+  test('enforces BMI measurement units, positive values, adult ages, and gender choices', () => {
+    expect(() => sqlite(database, `
+      INSERT INTO bmi_measurements VALUES
+        ('bad', 100, '2026-08-06', -330, 0, 'stone', 0, 0, 'meter', 0, 17, 'unknown', 1, 1);
+    `)).toThrow();
   });
 
   test('migrates version 1 data and seeds the major muscle groups', () => {

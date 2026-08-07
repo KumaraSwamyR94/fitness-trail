@@ -3,7 +3,6 @@ import { useSQLiteContext } from 'expo-sqlite';
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition, useReducedMotion } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { EmptyState } from '@/components/empty-state';
@@ -19,7 +18,6 @@ export default function DashboardScreen(): React.ReactElement {
   const db = useSQLiteContext();
   const theme = useAppTheme();
   const { horizontalPadding } = useResponsiveLayout();
-  const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const { version } = useDataChange();
   const today = React.useMemo(() => new Date(), []);
@@ -60,7 +58,7 @@ export default function DashboardScreen(): React.ReactElement {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <View collapsable={false} style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
@@ -69,7 +67,7 @@ export default function DashboardScreen(): React.ReactElement {
           alignSelf: 'center',
           paddingHorizontal: horizontalPadding,
           paddingTop: horizontalPadding,
-          paddingBottom: 126,
+          paddingBottom: 40,
           gap: 18,
         }}
         refreshControl={undefined}
@@ -141,20 +139,14 @@ export default function DashboardScreen(): React.ReactElement {
             ))
           )}
         </View>
+
+        <AppButton
+          label="Start New Session"
+          onPress={() => router.push('/sessions/new')}
+          icon={{ name: 'plus', fallback: '+' }}
+          testID="start-new-session"
+        />
       </ScrollView>
-      <View
-        pointerEvents="box-none"
-        style={{ position: 'absolute', left: 0, right: 0, bottom: Math.max(insets.bottom, 14), alignItems: 'center' }}
-      >
-        <View style={{ width: '100%', maxWidth: readableContentMaxWidth, paddingHorizontal: horizontalPadding }}>
-          <AppButton
-            label="Start New Session"
-            onPress={() => router.push('/sessions/new')}
-            icon={{ name: 'plus', fallback: '+' }}
-            testID="start-new-session"
-          />
-        </View>
-      </View>
     </View>
   );
 }
