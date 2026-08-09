@@ -10,6 +10,7 @@ import { SheetScaffold } from '@/components/sheet-scaffold';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { muscleGroupRepository } from '@/data/muscle-group-repository';
+import { useProfiles } from '@/data/profile-context';
 import { useAppTheme } from '@/theme/use-app-theme';
 import type { ExerciseCatalogEntry, ExerciseType, MuscleGroupCatalogEntry } from '@/types/workout';
 import { successFeedback } from '@/utils/feedback';
@@ -29,6 +30,7 @@ export default function AddExerciseScreen(): React.ReactElement {
   const db = useSQLiteContext();
   const theme = useAppTheme();
   const { notifyDataChanged } = useDataChange();
+  const { selectedProfile, loading } = useProfiles();
   const [query, setQuery] = React.useState('');
   const [suggestions, setSuggestions] = React.useState<ExerciseCatalogEntry[]>([]);
   const [muscleGroupQuery, setMuscleGroupQuery] = React.useState('');
@@ -39,6 +41,10 @@ export default function AddExerciseScreen(): React.ReactElement {
   const [exerciseError, setExerciseError] = React.useState<string | null>(null);
   const [muscleGroupError, setMuscleGroupError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!loading && !selectedProfile) router.replace('/');
+  }, [loading, selectedProfile]);
 
   React.useEffect(() => {
     let active = true;
@@ -89,7 +95,15 @@ export default function AddExerciseScreen(): React.ReactElement {
     setExerciseError(null);
     setMuscleGroupError(null);
     try {
-      const exercise = await exerciseRepository.create(db, sessionId, name, muscleGroupName, type);
+      if (!selectedProfile) throw new Error('Choose a profile first.');
+      const exercise = await exerciseRepository.create(
+        db,
+        selectedProfile.id,
+        sessionId,
+        name,
+        muscleGroupName,
+        type,
+      );
       notifyDataChanged();
       track('exercise_created', {
         exerciseId: exercise.id,

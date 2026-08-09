@@ -4,6 +4,7 @@ export type SetKind = 'strength' | 'duration' | 'calories';
 
 export interface Session {
   id: string;
+  profileId: string;
   name: string;
   scheduledAt: number;
   localDate: string;

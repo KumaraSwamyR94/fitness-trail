@@ -6,10 +6,13 @@ export type BmiCategory = 'underweight' | 'healthy' | 'overweight' | 'obesity';
 export type BmiMetric = 'bmi' | 'weight';
 export type BmiRange = '1W' | '30D' | '90D' | 'All';
 
-export interface BmiMeasurementInput {
+export interface BmiMeasurementDraft {
   measuredAt: Date;
   inputWeight: number;
   inputWeightUnit: WeightUnit;
+}
+
+export interface BmiMeasurementInput extends BmiMeasurementDraft {
   inputHeightUnit: HeightUnit;
   heightCm: number;
   ageYears: number;
@@ -18,6 +21,7 @@ export interface BmiMeasurementInput {
 
 export interface BmiMeasurement {
   id: string;
+  profileId: string;
   measuredAt: number;
   localDate: string;
   timezoneOffsetMinutes: number;

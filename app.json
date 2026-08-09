@@ -29,6 +29,14 @@
       "expo-router",
       "expo-sqlite",
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Fitness Trail to choose a profile picture from your photo library.",
+          "cameraPermission": "Allow Fitness Trail to take a profile picture.",
+          "microphonePermission": false
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-font",
       [

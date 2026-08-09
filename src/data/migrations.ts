@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 export const SCHEMA_V1 = `
   CREATE TABLE sessions (
@@ -179,6 +179,48 @@ export const MIGRATION_V4 = `
   PRAGMA user_version = 4;
 `;
 
+export const MIGRATION_V5 = `
+  CREATE TABLE profiles (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 80),
+    age_source TEXT NOT NULL CHECK(age_source IN ('age', 'dob')),
+    age_years INTEGER CHECK(age_years BETWEEN 18 AND 150),
+    date_of_birth TEXT,
+    gender TEXT NOT NULL CHECK(gender IN ('woman', 'man', 'non_binary', 'prefer_not_to_say')),
+    input_height_unit TEXT NOT NULL CHECK(input_height_unit IN ('cm', 'ft-in')),
+    height_cm REAL NOT NULL CHECK(height_cm > 0),
+    photo_kind TEXT NOT NULL DEFAULT 'none' CHECK(photo_kind IN ('none', 'avatar', 'local')),
+    photo_ref TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    CHECK(
+      (age_source = 'age' AND age_years IS NOT NULL AND date_of_birth IS NULL)
+      OR (age_source = 'dob' AND age_years IS NULL AND date_of_birth IS NOT NULL)
+    ),
+    CHECK(
+      (photo_kind = 'none' AND photo_ref IS NULL)
+      OR (photo_kind IN ('avatar', 'local') AND photo_ref IS NOT NULL)
+    )
+  );
+
+  CREATE TABLE profile_state (
+    singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
+    selected_profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL
+  );
+  INSERT INTO profile_state (singleton, selected_profile_id) VALUES (1, NULL);
+
+  ALTER TABLE sessions
+    ADD COLUMN profile_id TEXT REFERENCES profiles(id) ON DELETE CASCADE;
+  ALTER TABLE bmi_measurements
+    ADD COLUMN profile_id TEXT REFERENCES profiles(id) ON DELETE CASCADE;
+
+  CREATE INDEX profiles_updated_at_idx ON profiles(updated_at DESC, created_at DESC);
+  CREATE INDEX sessions_profile_local_date_idx ON sessions(profile_id, local_date);
+  CREATE INDEX bmi_measurements_profile_measured_at_idx
+    ON bmi_measurements(profile_id, measured_at DESC, created_at DESC);
+  PRAGMA user_version = 5;
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
@@ -201,6 +243,10 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
     }
     if (version < 4) {
       await transaction.execAsync(MIGRATION_V4);
+      version = 4;
+    }
+    if (version < 5) {
+      await transaction.execAsync(MIGRATION_V5);
     }
   });
 }

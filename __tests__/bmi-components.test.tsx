@@ -4,7 +4,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BmiTrendChart } from '@/components/bmi-trend-chart';
 import { BmiMeasurementForm } from '@/features/bmi/bmi-measurement-form';
-import type { BmiMeasurement, BmiMeasurementInput } from '@/types/bmi';
+import type { BmiMeasurement, BmiMeasurementDraft } from '@/types/bmi';
+import type { Profile } from '@/types/profile';
 import { calculateBmi } from '@/utils/bmi';
 
 jest.mock('expo-image', () => ({ Image: () => null }));
@@ -14,22 +15,33 @@ const initialMetrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-const initialValue: BmiMeasurementInput = {
+const profile: Profile = {
+  id: 'p1',
+  name: 'Alex Trail',
+  ageSource: 'age',
+  ageYears: 30,
+  dateOfBirth: null,
+  gender: 'woman',
+  inputHeightUnit: 'cm',
+  heightCm: 175,
+  photo: { kind: 'none', ref: null },
+  createdAt: 1,
+  updatedAt: 1,
+};
+
+const initialValue: BmiMeasurementDraft = {
   measuredAt: new Date(Date.now() - 60_000),
   inputWeight: 70,
   inputWeightUnit: 'kg',
-  inputHeightUnit: 'cm',
-  heightCm: 175,
-  ageYears: 30,
-  gender: 'woman',
 };
 
-async function renderForm(onSubmit = jest.fn(async () => undefined), value?: BmiMeasurementInput) {
+async function renderForm(onSubmit = jest.fn(async () => undefined), value?: BmiMeasurementDraft) {
   return {
     onSubmit,
     ...await render(
       <SafeAreaProvider initialMetrics={initialMetrics}>
         <BmiMeasurementForm
+          profile={profile}
           initialValue={value}
           submitLabel="Save"
           submitting={false}
@@ -45,19 +57,15 @@ describe('BMI measurement form', () => {
     const { getByTestId, findByText, onSubmit } = await renderForm();
     fireEvent.press(getByTestId('save-bmi-measurement'));
     expect(await findByText('Enter a weight greater than 0.')).toBeTruthy();
-    expect(await findByText('Choose a gender option.')).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
   test('converts populated values when unit controls change', async () => {
-    const { getByLabelText, getByTestId } = await renderForm(undefined, initialValue);
+    const { getByLabelText, getByTestId, queryByTestId, getByText } = await renderForm(undefined, initialValue);
     await fireEvent(getByLabelText('Weight unit'), 'onChange', { nativeEvent: { selectedSegmentIndex: 1 } });
     await waitFor(() => expect(getByTestId('bmi-weight').props.value).toBe('154.32'));
-    await fireEvent(getByLabelText('Height unit'), 'onChange', { nativeEvent: { selectedSegmentIndex: 1 } });
-    await waitFor(() => {
-      expect(getByTestId('bmi-height-feet').props.value).toBe('5');
-      expect(getByTestId('bmi-height-inches').props.value).toBe('8.9');
-    });
+    expect(queryByTestId('bmi-age')).toBeNull();
+    expect(getByText('175.0 cm')).toBeTruthy();
   });
 
   test('submits a complete prefilled measurement', async () => {
@@ -66,9 +74,7 @@ describe('BMI measurement form', () => {
     fireEvent.press(getByTestId('save-bmi-measurement'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       inputWeight: 70,
-      heightCm: 175,
-      ageYears: 30,
-      gender: 'woman',
+      inputWeightUnit: 'kg',
     })));
   });
 });
@@ -76,6 +82,7 @@ describe('BMI measurement form', () => {
 describe('BMI trend chart', () => {
   const measurement: BmiMeasurement = {
     id: 'b1',
+    profileId: 'p1',
     measuredAt: Date.now(),
     localDate: '2026-08-06',
     timezoneOffsetMinutes: -330,

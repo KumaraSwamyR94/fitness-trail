@@ -7,6 +7,7 @@ import { toLocalDateKey } from '@/utils/dates';
 
 interface SessionRow {
   id: string;
+  profile_id: string;
   name: string;
   scheduled_at: number;
   local_date: string;
@@ -23,6 +24,7 @@ interface SessionSummaryRow extends SessionRow {
 function mapSession(row: SessionRow): Session {
   return {
     id: row.id,
+    profileId: row.profile_id,
     name: row.name,
     scheduledAt: row.scheduled_at,
     localDate: row.local_date,
@@ -50,27 +52,29 @@ const summarySelect = `
 `;
 
 export const sessionRepository = {
-  async listBetween(db: SQLiteDatabase, start: string, end: string): Promise<SessionSummary[]> {
+  async listBetween(db: SQLiteDatabase, profileId: string, start: string, end: string): Promise<SessionSummary[]> {
     const rows = await db.getAllAsync<SessionSummaryRow>(
       `${summarySelect}
-       WHERE s.local_date BETWEEN ? AND ?
+       WHERE s.profile_id = ? AND s.local_date BETWEEN ? AND ?
        GROUP BY s.id
        ORDER BY s.scheduled_at ASC`,
+      profileId,
       start,
       end,
     );
     return rows.map(mapSummary);
   },
 
-  async get(db: SQLiteDatabase, id: string): Promise<Session | null> {
-    const row = await db.getFirstAsync<SessionRow>('SELECT * FROM sessions WHERE id = ?', id);
+  async get(db: SQLiteDatabase, profileId: string, id: string): Promise<Session | null> {
+    const row = await db.getFirstAsync<SessionRow>('SELECT * FROM sessions WHERE id = ? AND profile_id = ?', id, profileId);
     return row ? mapSession(row) : null;
   },
 
-  async create(db: SQLiteDatabase, name: string, scheduledAt: Date): Promise<Session> {
+  async create(db: SQLiteDatabase, profileId: string, name: string, scheduledAt: Date): Promise<Session> {
     const now = Date.now();
     const session: Session = {
       id: randomUUID(),
+      profileId,
       name: cleanDisplayName(name),
       scheduledAt: scheduledAt.getTime(),
       localDate: toLocalDateKey(scheduledAt),
@@ -80,9 +84,10 @@ export const sessionRepository = {
     };
     await db.runAsync(
       `INSERT INTO sessions
-       (id, name, scheduled_at, local_date, timezone_offset_minutes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (id, profile_id, name, scheduled_at, local_date, timezone_offset_minutes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       session.id,
+      session.profileId,
       session.name,
       session.scheduledAt,
       session.localDate,
@@ -93,20 +98,23 @@ export const sessionRepository = {
     return session;
   },
 
-  async update(db: SQLiteDatabase, id: string, name: string, scheduledAt: Date): Promise<void> {
-    await db.runAsync(
+  async update(db: SQLiteDatabase, profileId: string, id: string, name: string, scheduledAt: Date): Promise<void> {
+    const result = await db.runAsync(
       `UPDATE sessions SET name = ?, scheduled_at = ?, local_date = ?,
-       timezone_offset_minutes = ?, updated_at = ? WHERE id = ?`,
+       timezone_offset_minutes = ?, updated_at = ? WHERE id = ? AND profile_id = ?`,
       cleanDisplayName(name),
       scheduledAt.getTime(),
       toLocalDateKey(scheduledAt),
       scheduledAt.getTimezoneOffset(),
       Date.now(),
       id,
+      profileId,
     );
+    if (result.changes === 0) throw new Error('Session not found.');
   },
 
-  async remove(db: SQLiteDatabase, id: string): Promise<void> {
-    await db.runAsync('DELETE FROM sessions WHERE id = ?', id);
+  async remove(db: SQLiteDatabase, profileId: string, id: string): Promise<void> {
+    const result = await db.runAsync('DELETE FROM sessions WHERE id = ? AND profile_id = ?', id, profileId);
+    if (result.changes === 0) throw new Error('Session not found.');
   },
 };

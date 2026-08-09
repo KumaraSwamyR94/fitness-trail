@@ -7,7 +7,9 @@ import Animated, { FadeIn, LinearTransition, useReducedMotion } from 'react-nati
 import { AppButton } from '@/components/app-button';
 import { EmptyState } from '@/components/empty-state';
 import { MonthCalendar } from '@/components/month-calendar';
+import { SelectedProfileCard } from '@/components/selected-profile-card';
 import { useDataChange } from '@/data/data-change-context';
+import { useProfiles } from '@/data/profile-context';
 import { sessionRepository } from '@/data/session-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
@@ -20,6 +22,7 @@ export default function DashboardScreen(): React.ReactElement {
   const { horizontalPadding } = useResponsiveLayout();
   const reduceMotion = useReducedMotion();
   const { version } = useDataChange();
+  const { selectedProfile, loading: profilesLoading } = useProfiles();
   const today = React.useMemo(() => new Date(), []);
   const [month, setMonth] = React.useState(() => startOfMonth(today));
   const [selectedKey, setSelectedKey] = React.useState(() => toLocalDateKey(today));
@@ -28,13 +31,18 @@ export default function DashboardScreen(): React.ReactElement {
 
   const load = React.useCallback(async () => {
     setLoading(true);
+    if (!selectedProfile) {
+      setSessions([]);
+      setLoading(false);
+      return;
+    }
     const range = monthRange(month);
     try {
-      setSessions(await sessionRepository.listBetween(db, range.start, range.end));
+      setSessions(await sessionRepository.listBetween(db, selectedProfile.id, range.start, range.end));
     } finally {
       setLoading(false);
     }
-  }, [db, month]);
+  }, [db, month, selectedProfile]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -81,6 +89,15 @@ export default function DashboardScreen(): React.ReactElement {
           </Text>
         </View>
 
+        {selectedProfile ? (
+          <SelectedProfileCard profile={selectedProfile} />
+        ) : !profilesLoading ? (
+          <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, borderCurve: 'continuous' }}>
+            <EmptyState title="Choose a profile first" message="Create a profile to keep this workout trail separate and start logging sessions." icon={{ name: 'account-plus-outline' }} />
+          </View>
+        ) : null}
+
+        {selectedProfile ? <>
         <MonthCalendar
           month={month}
           selectedKey={selectedKey}
@@ -139,11 +156,12 @@ export default function DashboardScreen(): React.ReactElement {
             ))
           )}
         </View>
+        </> : null}
 
         <AppButton
-          label="Start New Session"
-          onPress={() => router.push('/sessions/new')}
-          icon={{ name: 'plus' }}
+          label={selectedProfile ? 'Start New Session' : 'Create Profile'}
+          onPress={() => router.push(selectedProfile ? '/sessions/new' : '/profiles/new')}
+          icon={{ name: selectedProfile ? 'plus' : 'account-plus-outline' }}
           testID="start-new-session"
         />
       </ScrollView>

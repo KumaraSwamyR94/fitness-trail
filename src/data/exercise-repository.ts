@@ -160,8 +160,17 @@ async function compactPositions(db: SQLiteDatabase, sessionId: string): Promise<
   }
 }
 
+async function assertSessionOwned(db: SQLiteDatabase, profileId: string, sessionId: string): Promise<void> {
+  const session = await db.getFirstAsync<{ id: string }>(
+    'SELECT id FROM sessions WHERE id = ? AND profile_id = ?',
+    sessionId,
+    profileId,
+  );
+  if (!session) throw new Error('Session not found.');
+}
+
 export const exerciseRepository = {
-  async listForSession(db: SQLiteDatabase, sessionId: string): Promise<ExerciseSummary[]> {
+  async listForSession(db: SQLiteDatabase, profileId: string, sessionId: string): Promise<ExerciseSummary[]> {
     const rows = await db.getAllAsync<ExerciseSummaryRow>(
       `SELECT se.*, mg.display_name AS muscle_group_name,
         COUNT(ws.id) AS set_count,
@@ -175,26 +184,30 @@ export const exerciseRepository = {
         last_ws.duration_seconds AS last_duration_seconds,
         last_ws.calories AS last_calories
        FROM session_exercises se
+       JOIN sessions s ON s.id = se.session_id
        LEFT JOIN muscle_group_catalog mg ON mg.id = se.muscle_group_id
        LEFT JOIN workout_sets ws ON ws.exercise_id = se.id
        LEFT JOIN workout_sets last_ws ON last_ws.id = (
          SELECT id FROM workout_sets WHERE exercise_id = se.id ORDER BY position DESC LIMIT 1
        )
-       WHERE se.session_id = ?
+       WHERE se.session_id = ? AND s.profile_id = ?
        GROUP BY se.id
        ORDER BY se.position`,
       sessionId,
+      profileId,
     );
     return rows.map(mapSummary);
   },
 
-  async get(db: SQLiteDatabase, id: string): Promise<SessionExercise | null> {
+  async get(db: SQLiteDatabase, profileId: string, id: string): Promise<SessionExercise | null> {
     const row = await db.getFirstAsync<ExerciseRow>(
       `SELECT se.*, mg.display_name AS muscle_group_name
        FROM session_exercises se
+       JOIN sessions s ON s.id = se.session_id
        LEFT JOIN muscle_group_catalog mg ON mg.id = se.muscle_group_id
-       WHERE se.id = ?`,
+       WHERE se.id = ? AND s.profile_id = ?`,
       id,
+      profileId,
     );
     return row ? mapExercise(row) : null;
   },
@@ -220,6 +233,7 @@ export const exerciseRepository = {
 
   async create(
     db: SQLiteDatabase,
+    profileId: string,
     sessionId: string,
     name: string,
     muscleGroupName: string,
@@ -232,6 +246,7 @@ export const exerciseRepository = {
     const normalizedName = normalizeName(name);
     let created: SessionExercise | null = null;
     await db.withExclusiveTransactionAsync(async (transaction) => {
+      await assertSessionOwned(transaction, profileId, sessionId);
       const duplicate = await transaction.getFirstAsync<{ id: string }>(
         'SELECT id FROM session_exercises WHERE session_id = ? AND normalized_name = ?',
         sessionId,
@@ -286,10 +301,11 @@ export const exerciseRepository = {
     return created;
   },
 
-  async rename(db: SQLiteDatabase, id: string, sessionId: string, name: string): Promise<void> {
+  async rename(db: SQLiteDatabase, profileId: string, id: string, sessionId: string, name: string): Promise<void> {
     const displayName = cleanDisplayName(name);
     const normalizedName = normalizeName(name);
     await db.withExclusiveTransactionAsync(async (transaction) => {
+      await assertSessionOwned(transaction, profileId, sessionId);
       const duplicate = await transaction.getFirstAsync<{ id: string }>(
         `SELECT id FROM session_exercises
          WHERE session_id = ? AND normalized_name = ? AND id <> ?`,
@@ -302,9 +318,14 @@ export const exerciseRepository = {
         muscle_group_id: string | null;
         exercise_type: ExerciseType;
       }>(
-        'SELECT muscle_group_id, exercise_type FROM session_exercises WHERE id = ?',
+        `SELECT se.muscle_group_id, se.exercise_type FROM session_exercises se
+         JOIN sessions s ON s.id = se.session_id
+         WHERE se.id = ? AND se.session_id = ? AND s.profile_id = ?`,
         id,
+        sessionId,
+        profileId,
       );
+      if (!current) throw new Error('Exercise not found.');
       const catalogId = await upsertCatalog(
         transaction,
         displayName,
@@ -324,15 +345,22 @@ export const exerciseRepository = {
     });
   },
 
-  async remove(db: SQLiteDatabase, id: string, sessionId: string): Promise<void> {
+  async remove(db: SQLiteDatabase, profileId: string, id: string, sessionId: string): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
-      await transaction.runAsync('DELETE FROM session_exercises WHERE id = ?', id);
+      await assertSessionOwned(transaction, profileId, sessionId);
+      const result = await transaction.runAsync(
+        'DELETE FROM session_exercises WHERE id = ? AND session_id = ?',
+        id,
+        sessionId,
+      );
+      if (result.changes === 0) throw new Error('Exercise not found.');
       await compactPositions(transaction, sessionId);
     });
   },
 
-  async reorder(db: SQLiteDatabase, sessionId: string, orderedIds: string[]): Promise<void> {
+  async reorder(db: SQLiteDatabase, profileId: string, sessionId: string, orderedIds: string[]): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
+      await assertSessionOwned(transaction, profileId, sessionId);
       await transaction.runAsync(
         'UPDATE session_exercises SET position = -position - 1 WHERE session_id = ?',
         sessionId,

@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppErrorBoundary } from '@/components/app-error-boundary';
 import { DataChangeProvider } from '@/data/data-change-context';
 import { migrateDatabase } from '@/data/migrations';
+import { ProfileProvider } from '@/data/profile-context';
 import { useAppTheme } from '@/theme/use-app-theme';
 
 function Navigation(): React.ReactElement {
@@ -44,7 +45,9 @@ export default function RootLayout(): React.ReactElement {
         <SafeAreaProvider>
           <SQLiteProvider databaseName="fitness-trail.db" onInit={migrateDatabase}>
             <DataChangeProvider>
-              <Navigation />
+              <ProfileProvider>
+                <Navigation />
+              </ProfileProvider>
             </DataChangeProvider>
           </SQLiteProvider>
         </SafeAreaProvider>

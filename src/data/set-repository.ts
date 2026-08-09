@@ -50,19 +50,32 @@ function mapSet(row: SetRow): WorkoutSet {
   throw new Error(`Set ${row.id} contains invalid ${row.set_kind} data.`);
 }
 
+async function getOwnedExerciseType(
+  db: SQLiteDatabase,
+  profileId: string,
+  exerciseId: string,
+): Promise<ExerciseType> {
+  const exercise = await db.getFirstAsync<{ exercise_type: ExerciseType }>(
+    `SELECT se.exercise_type FROM session_exercises se
+     JOIN sessions s ON s.id = se.session_id
+     WHERE se.id = ? AND s.profile_id = ?`,
+    exerciseId,
+    profileId,
+  );
+  if (!exercise) throw new Error('Exercise not found.');
+  return exercise.exercise_type;
+}
+
 async function assertCompatibleExercise(
   db: SQLiteDatabase,
+  profileId: string,
   exerciseId: string,
   input: SetInput,
 ): Promise<ExerciseType> {
-  const exercise = await db.getFirstAsync<{ exercise_type: ExerciseType }>(
-    'SELECT exercise_type FROM session_exercises WHERE id = ?',
-    exerciseId,
-  );
-  if (!exercise) throw new Error('Exercise not found.');
-  const validation = validateSetInput(input, exercise.exercise_type);
+  const exerciseType = await getOwnedExerciseType(db, profileId, exerciseId);
+  const validation = validateSetInput(input, exerciseType);
   if (validation) throw new Error(validation);
-  return exercise.exercise_type;
+  return exerciseType;
 }
 
 function databaseValues(input: SetInput) {
@@ -100,21 +113,32 @@ async function compactPositions(db: SQLiteDatabase, exerciseId: string): Promise
 }
 
 export const setRepository = {
-  async listForExercise(db: SQLiteDatabase, exerciseId: string): Promise<WorkoutSet[]> {
+  async listForExercise(db: SQLiteDatabase, profileId: string, exerciseId: string): Promise<WorkoutSet[]> {
     const rows = await db.getAllAsync<SetRow>(
-      'SELECT * FROM workout_sets WHERE exercise_id = ? ORDER BY position',
+      `SELECT ws.* FROM workout_sets ws
+       JOIN session_exercises se ON se.id = ws.exercise_id
+       JOIN sessions s ON s.id = se.session_id
+       WHERE ws.exercise_id = ? AND s.profile_id = ? ORDER BY ws.position`,
       exerciseId,
+      profileId,
     );
     return rows.map(mapSet);
   },
 
-  async get(db: SQLiteDatabase, id: string): Promise<WorkoutSet | null> {
-    const row = await db.getFirstAsync<SetRow>('SELECT * FROM workout_sets WHERE id = ?', id);
+  async get(db: SQLiteDatabase, profileId: string, id: string): Promise<WorkoutSet | null> {
+    const row = await db.getFirstAsync<SetRow>(
+      `SELECT ws.* FROM workout_sets ws
+       JOIN session_exercises se ON se.id = ws.exercise_id
+       JOIN sessions s ON s.id = se.session_id
+       WHERE ws.id = ? AND s.profile_id = ?`,
+      id,
+      profileId,
+    );
     return row ? mapSet(row) : null;
   },
 
-  async create(db: SQLiteDatabase, exerciseId: string, input: SetInput): Promise<WorkoutSet> {
-    await assertCompatibleExercise(db, exerciseId, input);
+  async create(db: SQLiteDatabase, profileId: string, exerciseId: string, input: SetInput): Promise<WorkoutSet> {
+    await assertCompatibleExercise(db, profileId, exerciseId, input);
     const next = await db.getFirstAsync<{ next_position: number }>(
       'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM workout_sets WHERE exercise_id = ?',
       exerciseId,
@@ -140,13 +164,17 @@ export const setRepository = {
     return created;
   },
 
-  async update(db: SQLiteDatabase, id: string, input: SetInput): Promise<void> {
+  async update(db: SQLiteDatabase, profileId: string, id: string, input: SetInput): Promise<void> {
     const current = await db.getFirstAsync<{ exercise_id: string }>(
-      'SELECT exercise_id FROM workout_sets WHERE id = ?',
+      `SELECT ws.exercise_id FROM workout_sets ws
+       JOIN session_exercises se ON se.id = ws.exercise_id
+       JOIN sessions s ON s.id = se.session_id
+       WHERE ws.id = ? AND s.profile_id = ?`,
       id,
+      profileId,
     );
     if (!current) throw new Error('Set not found.');
-    await assertCompatibleExercise(db, current.exercise_id, input);
+    await assertCompatibleExercise(db, profileId, current.exercise_id, input);
     const values = databaseValues(input);
     await db.runAsync(
       `UPDATE workout_sets SET set_kind = ?, reps = ?, input_weight = ?, input_unit = ?,
@@ -158,9 +186,15 @@ export const setRepository = {
     );
   },
 
-  async remove(db: SQLiteDatabase, id: string, exerciseId: string): Promise<void> {
+  async remove(db: SQLiteDatabase, profileId: string, id: string, exerciseId: string): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
-      await transaction.runAsync('DELETE FROM workout_sets WHERE id = ?', id);
+      await getOwnedExerciseType(transaction, profileId, exerciseId);
+      const result = await transaction.runAsync(
+        'DELETE FROM workout_sets WHERE id = ? AND exercise_id = ?',
+        id,
+        exerciseId,
+      );
+      if (result.changes === 0) throw new Error('Set not found.');
       await compactPositions(transaction, exerciseId);
     });
   },

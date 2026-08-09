@@ -14,6 +14,7 @@ import {
 function measurement(id: string, measuredAt: number): BmiMeasurement {
   return {
     id,
+    profileId: 'p1',
     measuredAt,
     localDate: '2026-08-06',
     timezoneOffsetMinutes: -330,
