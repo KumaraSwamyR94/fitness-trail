@@ -24,7 +24,7 @@ export default function BmiLayout(): React.ReactElement {
         contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'BMI', headerLargeTitle: true }} />
+      <Stack.Screen name="index" options={{ title: 'BMI' }} />
       <Stack.Screen name="measurements/new" options={{ ...sheetOptions, title: 'New Measurement' }} />
       <Stack.Screen
         name="measurements/[measurementId]"

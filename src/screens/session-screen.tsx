@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/app-button';
 import { EmptyState } from '@/components/empty-state';
 import { SwipeActionRow } from '@/components/swipe-action-row';
-import { SymbolIcon } from '@/components/symbol-icon';
+import { AppIcon } from '@/components/app-icon';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { sessionRepository } from '@/data/session-repository';
@@ -234,7 +234,7 @@ export default function SessionScreen(): React.ReactElement {
               hitSlop={10}
               style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
             >
-              <SymbolIcon name="line.3.horizontal" fallback="≡" color={theme.colors.textMuted} size={22} />
+              <AppIcon name="reorder-horizontal" color={theme.colors.textMuted} size={22} />
             </Pressable>
           ) : null}
         </Pressable>
@@ -308,7 +308,7 @@ export default function SessionScreen(): React.ReactElement {
         <View style={{ width: '100%', maxWidth: readableContentMaxWidth, paddingHorizontal: horizontalPadding }}>
           <AppButton
             label="Add Exercise"
-            icon={{ name: 'plus', fallback: '+' }}
+            icon={{ name: 'plus' }}
             onPress={() =>
               router.push({ pathname: '/sessions/[sessionId]/exercises/new', params: { sessionId } })
             }

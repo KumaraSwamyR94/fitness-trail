@@ -24,7 +24,7 @@ export default function WorkoutsLayout(): React.ReactElement {
         contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Fitness Trail', headerLargeTitle: true }} />
+      <Stack.Screen name="index" options={{ title: 'Fitness Trail' }} />
       <Stack.Screen name="sessions/new" options={{ ...sheetOptions, title: 'New Session' }} />
       <Stack.Screen name="sessions/[sessionId]/index" options={{ title: 'Session' }} />
       <Stack.Screen name="sessions/[sessionId]/edit" options={{ ...sheetOptions, title: 'Edit Session' }} />
