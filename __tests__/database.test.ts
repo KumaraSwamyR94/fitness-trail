@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { MIGRATION_V2, MIGRATION_V3, SCHEMA_V1 } from '@/data/migrations';
+import { MIGRATION_V2, MIGRATION_V3, MIGRATION_V4, SCHEMA_V1 } from '@/data/migrations';
 
 function sqlite(database: string, sql: string): string {
   return execFileSync('/usr/bin/sqlite3', [database], {
@@ -18,11 +18,11 @@ describe('SQLite migration and relational integrity', () => {
 
   beforeEach(() => {
     database = path.join(mkdtempSync(path.join(tmpdir(), 'fitness-trail-db-')), 'journal.db');
-    sqlite(database, `${SCHEMA_V1}\n${MIGRATION_V2}\n${MIGRATION_V3}`);
+    sqlite(database, `${SCHEMA_V1}\n${MIGRATION_V2}\n${MIGRATION_V3}\n${MIGRATION_V4}`);
   });
 
   test('creates the versioned schema and calendar/relationship indexes', () => {
-    expect(sqlite(database, 'PRAGMA user_version;')).toBe('3');
+    expect(sqlite(database, 'PRAGMA user_version;')).toBe('4');
     const indexes = sqlite(database, "SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name;");
     expect(indexes).toContain('muscle_group_catalog_search_idx');
     expect(indexes).toContain('bmi_measurements_measured_at_idx');
@@ -43,6 +43,27 @@ describe('SQLite migration and relational integrity', () => {
     expect(sqlite(versionTwoDatabase, 'PRAGMA user_version;')).toBe('3');
     expect(sqlite(versionTwoDatabase, 'SELECT name FROM sessions WHERE id = "s1";')).toBe('Session');
     expect(sqlite(versionTwoDatabase, "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bmi_measurements';")).toBe('bmi_measurements');
+  });
+
+  test('migrates version 3 exercises and sets as free-weight strength records', () => {
+    const versionThreeDatabase = path.join(
+      mkdtempSync(path.join(tmpdir(), 'fitness-trail-v3-db-')),
+      'journal.db',
+    );
+    sqlite(versionThreeDatabase, `${SCHEMA_V1}\n${MIGRATION_V2}\n${MIGRATION_V3}`);
+    sqlite(versionThreeDatabase, `
+      INSERT INTO sessions VALUES ('s1', 'Session', 1, '2026-08-03', -330, 1, 1);
+      INSERT INTO session_exercises
+        (id, session_id, catalog_id, display_name, normalized_name, position, created_at, updated_at, muscle_group_id)
+      VALUES ('e1', 's1', NULL, 'Squat', 'squat', 0, 1, 1, 'muscle-quadriceps');
+      INSERT INTO workout_sets VALUES ('w1', 'e1', 0, 5, 100, 'kg', 100, 220.462, 18, 1, 1);
+    `);
+
+    sqlite(versionThreeDatabase, MIGRATION_V4);
+
+    expect(sqlite(versionThreeDatabase, 'PRAGMA user_version;')).toBe('4');
+    expect(sqlite(versionThreeDatabase, "SELECT exercise_type FROM session_exercises WHERE id = 'e1';")).toBe('free_weight');
+    expect(sqlite(versionThreeDatabase, "SELECT set_kind || ':' || reps || ':' || input_weight FROM workout_sets WHERE id = 'w1';")).toBe('strength:5:100.0');
   });
 
   test('stores multiple same-day BMI measurements in timestamp order and supports updates and deletion', () => {
@@ -96,7 +117,9 @@ describe('SQLite migration and relational integrity', () => {
       INSERT INTO session_exercises
         (id, session_id, catalog_id, display_name, normalized_name, position, created_at, updated_at, muscle_group_id)
       VALUES ('e1', 's1', 'c1', 'Squat', 'squat', 0, 1, 1, 'muscle-quadriceps');
-      INSERT INTO workout_sets VALUES ('w1', 'e1', 0, 5, 100, 'kg', 100, 220.462, 18, 1, 1);
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, reps, input_weight, input_unit, weight_kg, weight_lb, tut_seconds, created_at, updated_at)
+      VALUES ('w1', 'e1', 0, 'strength', 5, 100, 'kg', 100, 220.462, 18, 1, 1);
     `);
     expect(sqlite(database, 'SELECT reps || ":" || weight_kg FROM workout_sets WHERE id = "w1";')).toBe('5:100.0');
     sqlite(database, "DELETE FROM sessions WHERE id = 's1';");
@@ -161,6 +184,37 @@ describe('SQLite migration and relational integrity', () => {
     `)).toBe('External Rotation:Rotator Cuff');
   });
 
+  test('enforces category-specific strength, duration, and calorie set shapes', () => {
+    sqlite(database, `
+      INSERT INTO sessions VALUES ('s1', 'Session', 1, '2026-08-03', -330, 1, 1);
+      INSERT INTO session_exercises
+        (id, session_id, catalog_id, display_name, normalized_name, position, created_at, updated_at, exercise_type)
+      VALUES
+        ('e1', 's1', NULL, 'Push Up', 'push up', 0, 1, 1, 'body_weight'),
+        ('e2', 's1', NULL, 'Running', 'running', 1, 1, 1, 'cardio');
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, reps, input_weight, input_unit, tut_seconds, created_at, updated_at)
+      VALUES ('strength', 'e1', 0, 'strength', 12, NULL, 'kg', 0, 1, 1);
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, duration_seconds, created_at, updated_at)
+      VALUES ('duration', 'e2', 0, 'duration', 605, 1, 1);
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, calories, created_at, updated_at)
+      VALUES ('calories', 'e2', 1, 'calories', 120, 1, 1);
+    `);
+    expect(sqlite(database, 'SELECT COUNT(*) FROM workout_sets;')).toBe('3');
+    expect(() => sqlite(database, `
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, duration_seconds, calories, created_at, updated_at)
+      VALUES ('mixed', 'e2', 2, 'duration', 60, 10, 1, 1);
+    `)).toThrow();
+    expect(() => sqlite(database, `
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, calories, created_at, updated_at)
+      VALUES ('fractional', 'e2', 2, 'calories', 10.5, 1, 1);
+    `)).toThrow();
+  });
+
   test('keeps multi-year calendar queries responsive', () => {
     sqlite(database, `
       WITH RECURSIVE days(value) AS (
@@ -181,8 +235,10 @@ describe('SQLite migration and relational integrity', () => {
 
       WITH set_numbers(value) AS (VALUES (0), (1), (2), (3), (4))
       INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, reps, input_weight, input_unit,
+         weight_kg, weight_lb, tut_seconds, created_at, updated_at)
       SELECT printf('w%s-%d', se.id, set_numbers.value), se.id, set_numbers.value,
-             8, 100, 'kg', 100, 220.462, 20, se.created_at, se.updated_at
+             'strength', 8, 100, 'kg', 100, 220.462, 20, se.created_at, se.updated_at
       FROM session_exercises se CROSS JOIN set_numbers;
     `);
     const startedAt = performance.now();

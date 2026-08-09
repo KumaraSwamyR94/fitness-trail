@@ -1,4 +1,6 @@
 export type WeightUnit = 'kg' | 'lb';
+export type ExerciseType = 'free_weight' | 'machine' | 'body_weight' | 'cardio';
+export type SetKind = 'strength' | 'duration' | 'calories';
 
 export interface Session {
   id: string;
@@ -21,6 +23,7 @@ export interface ExerciseCatalogEntry {
   displayName: string;
   muscleGroupId: string | null;
   muscleGroupName: string | null;
+  exerciseType: ExerciseType;
   useCount: number;
   lastUsedAt: number;
 }
@@ -42,6 +45,7 @@ export interface SessionExercise {
   normalizedName: string;
   muscleGroupId: string | null;
   muscleGroupName: string | null;
+  exerciseType: ExerciseType;
   position: number;
   createdAt: number;
   updatedAt: number;
@@ -49,29 +53,61 @@ export interface SessionExercise {
 
 export interface ExerciseSummary extends SessionExercise {
   setCount: number;
-  lastReps: number | null;
-  lastWeightKg: number | null;
-  lastWeightLb: number | null;
-  lastInputUnit: WeightUnit | null;
+  lastSet: WorkoutSetSummary | null;
 }
 
-export interface WorkoutSet {
+interface WorkoutSetBase {
   id: string;
   exerciseId: string;
   position: number;
-  reps: number;
-  inputWeight: number;
-  inputUnit: WeightUnit;
-  weightKg: number;
-  weightLb: number;
-  tutSeconds: number;
+  kind: SetKind;
   createdAt: number;
   updatedAt: number;
 }
 
-export interface SetInput {
+export interface StrengthWorkoutSet extends WorkoutSetBase {
+  kind: 'strength';
   reps: number;
-  inputWeight: number;
+  inputWeight: number | null;
+  inputUnit: WeightUnit;
+  weightKg: number | null;
+  weightLb: number | null;
+  tutSeconds: number;
+}
+
+export interface DurationWorkoutSet extends WorkoutSetBase {
+  kind: 'duration';
+  durationSeconds: number;
+}
+
+export interface CaloriesWorkoutSet extends WorkoutSetBase {
+  kind: 'calories';
+  calories: number;
+}
+
+export type WorkoutSet = StrengthWorkoutSet | DurationWorkoutSet | CaloriesWorkoutSet;
+type WorkoutSetMetadata = 'id' | 'exerciseId' | 'position' | 'createdAt' | 'updatedAt';
+export type WorkoutSetSummary =
+  | Omit<StrengthWorkoutSet, WorkoutSetMetadata>
+  | Omit<DurationWorkoutSet, WorkoutSetMetadata>
+  | Omit<CaloriesWorkoutSet, WorkoutSetMetadata>;
+
+export interface StrengthSetInput {
+  kind: 'strength';
+  reps: number;
+  inputWeight: number | null;
   inputUnit: WeightUnit;
   tutSeconds: number;
 }
+
+export interface DurationSetInput {
+  kind: 'duration';
+  durationSeconds: number;
+}
+
+export interface CaloriesSetInput {
+  kind: 'calories';
+  calories: number;
+}
+
+export type SetInput = StrengthSetInput | DurationSetInput | CaloriesSetInput;

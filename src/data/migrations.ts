@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 
 export const SCHEMA_V1 = `
   CREATE TABLE sessions (
@@ -120,6 +120,65 @@ export const MIGRATION_V3 = `
   PRAGMA user_version = 3;
 `;
 
+export const MIGRATION_V4 = `
+  ALTER TABLE exercise_catalog
+    ADD COLUMN exercise_type TEXT NOT NULL DEFAULT 'free_weight'
+    CHECK(exercise_type IN ('free_weight', 'machine', 'body_weight', 'cardio'));
+  ALTER TABLE session_exercises
+    ADD COLUMN exercise_type TEXT NOT NULL DEFAULT 'free_weight'
+    CHECK(exercise_type IN ('free_weight', 'machine', 'body_weight', 'cardio'));
+
+  ALTER TABLE workout_sets RENAME TO workout_sets_v3;
+
+  CREATE TABLE workout_sets (
+    id TEXT PRIMARY KEY NOT NULL,
+    exercise_id TEXT NOT NULL REFERENCES session_exercises(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    set_kind TEXT NOT NULL CHECK(set_kind IN ('strength', 'duration', 'calories')),
+    reps INTEGER,
+    input_weight REAL,
+    input_unit TEXT,
+    weight_kg REAL,
+    weight_lb REAL,
+    tut_seconds INTEGER,
+    duration_seconds INTEGER,
+    calories INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(exercise_id, position),
+    CHECK(
+      (set_kind = 'strength' AND reps >= 1
+        AND (input_weight IS NULL OR input_weight >= 0)
+        AND input_unit IN ('kg', 'lb')
+        AND ((input_weight IS NULL AND weight_kg IS NULL AND weight_lb IS NULL)
+          OR (input_weight IS NOT NULL AND weight_kg >= 0 AND weight_lb >= 0))
+        AND tut_seconds >= 0
+        AND duration_seconds IS NULL AND calories IS NULL)
+      OR
+      (set_kind = 'duration' AND duration_seconds >= 1
+        AND reps IS NULL AND input_weight IS NULL AND input_unit IS NULL
+        AND weight_kg IS NULL AND weight_lb IS NULL AND tut_seconds IS NULL AND calories IS NULL)
+      OR
+      (set_kind = 'calories' AND calories >= 1 AND calories = CAST(calories AS INTEGER)
+        AND reps IS NULL AND input_weight IS NULL AND input_unit IS NULL
+        AND weight_kg IS NULL AND weight_lb IS NULL AND tut_seconds IS NULL AND duration_seconds IS NULL)
+    )
+  );
+
+  INSERT INTO workout_sets
+    (id, exercise_id, position, set_kind, reps, input_weight, input_unit,
+     weight_kg, weight_lb, tut_seconds, duration_seconds, calories, created_at, updated_at)
+  SELECT id, exercise_id, position, 'strength', reps, input_weight, input_unit,
+         weight_kg, weight_lb, tut_seconds, NULL, NULL, created_at, updated_at
+  FROM workout_sets_v3;
+
+  DROP TABLE workout_sets_v3;
+  CREATE INDEX workout_sets_exercise_idx ON workout_sets(exercise_id, position);
+  CREATE INDEX exercise_catalog_type_idx ON exercise_catalog(exercise_type, last_used_at DESC);
+  CREATE INDEX session_exercises_type_idx ON session_exercises(session_id, exercise_type, position);
+  PRAGMA user_version = 4;
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
@@ -138,6 +197,10 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
     }
     if (version < 3) {
       await transaction.execAsync(MIGRATION_V3);
+      version = 3;
+    }
+    if (version < 4) {
+      await transaction.execAsync(MIGRATION_V4);
     }
   });
 }

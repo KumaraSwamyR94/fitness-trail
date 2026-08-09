@@ -1,33 +1,37 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React from 'react';
-import { Alert } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 
 import { useDataChange } from '@/data/data-change-context';
+import { exerciseRepository } from '@/data/exercise-repository';
 import { setRepository } from '@/data/set-repository';
 import { SetForm } from '@/features/sets/set-form';
-import type { SetInput } from '@/types/workout';
+import { useAppTheme } from '@/theme/use-app-theme';
+import type { ExerciseType, SetInput } from '@/types/workout';
 import { successFeedback } from '@/utils/feedback';
 import { track } from '@/utils/telemetry';
 
 export default function NewSetScreen(): React.ReactElement {
   const { exerciseId } = useLocalSearchParams<{ sessionId: string; exerciseId: string }>();
   const db = useSQLiteContext();
+  const theme = useAppTheme();
   const { notifyDataChanged } = useDataChange();
   const [initialValue, setInitialValue] = React.useState<SetInput | undefined>();
+  const [exerciseType, setExerciseType] = React.useState<ExerciseType | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    void setRepository.listForExercise(db, exerciseId).then((sets) => {
+    void Promise.all([
+      exerciseRepository.get(db, exerciseId),
+      setRepository.listForExercise(db, exerciseId),
+    ]).then(([exercise, sets]) => {
+      setExerciseType(exercise?.exerciseType ?? null);
       const latest = sets.at(-1);
-      if (latest) {
-        setInitialValue({
-          reps: latest.reps,
-          inputWeight: latest.inputWeight,
-          inputUnit: latest.inputUnit,
-          tutSeconds: latest.tutSeconds,
-        });
-      }
+      if (!latest) return;
+      if (latest.kind === 'strength') setInitialValue({ kind: 'strength', reps: latest.reps, inputWeight: latest.inputWeight, inputUnit: latest.inputUnit, tutSeconds: latest.tutSeconds });
+      else if (latest.kind === 'duration') setInitialValue({ kind: 'duration', durationSeconds: latest.durationSeconds });
+      else setInitialValue({ kind: 'calories', calories: latest.calories });
     });
   }, [db, exerciseId]);
 
@@ -47,5 +51,8 @@ export default function NewSetScreen(): React.ReactElement {
     }
   };
 
-  return <SetForm initialValue={initialValue} submitLabel="Add Set" submitting={submitting} onSubmit={save} />;
+  if (!exerciseType) {
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.accent} /></View>;
+  }
+  return <SetForm exerciseType={exerciseType} initialValue={initialValue} submitLabel="Add Set" submitting={submitting} onSubmit={save} />;
 }
