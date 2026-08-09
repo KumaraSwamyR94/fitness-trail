@@ -18,7 +18,7 @@ import type { ExerciseSummary, Session } from '@/types/workout';
 import { selectionFeedback, warningFeedback } from '@/utils/feedback';
 import { validateName } from '@/utils/names';
 import { track } from '@/utils/telemetry';
-import { formatWeight } from '@/utils/weight';
+import { exerciseTypeLabel, formatSetSummary } from '@/utils/workout';
 
 export default function SessionScreen(): React.ReactElement {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -140,14 +140,12 @@ export default function SessionScreen(): React.ReactElement {
   };
 
   const renderExercise = ({ item, drag, isActive }: RenderItemParams<ExerciseSummary>) => {
-    const lastWeight = item.lastInputUnit === 'lb' ? item.lastWeightLb : item.lastWeightKg;
-    const lastUnit = item.lastInputUnit ?? 'kg';
     const setSummary = item.setCount
-      ? `${item.setCount} ${item.setCount === 1 ? 'set' : 'sets'} · Last: ${formatWeight(lastWeight ?? 0)} ${lastUnit} × ${item.lastReps}`
+      ? `${item.setCount} ${item.setCount === 1 ? 'set' : 'sets'}${item.lastSet ? ` · Last: ${formatSetSummary(item.lastSet)}` : ''}`
       : 'No sets logged';
-    const summary = item.muscleGroupName
-      ? `${item.muscleGroupName} · ${setSummary}`
-      : setSummary;
+    const summary = [exerciseTypeLabel(item.exerciseType), item.muscleGroupName, setSummary]
+      .filter(Boolean)
+      .join(' · ');
     const editing = editingId === item.id;
 
     return (

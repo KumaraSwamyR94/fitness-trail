@@ -11,14 +11,27 @@ describe('weight conversion and validation', () => {
   });
 
   test.each([
-    [{ reps: 0, inputWeight: 20, inputUnit: 'kg' as const, tutSeconds: 0 }, 'Repetitions'],
-    [{ reps: 8, inputWeight: -1, inputUnit: 'kg' as const, tutSeconds: 0 }, 'Weight'],
-    [{ reps: 8, inputWeight: 20, inputUnit: 'kg' as const, tutSeconds: -1 }, 'Time under tension'],
+    [{ kind: 'strength' as const, reps: 0, inputWeight: 20, inputUnit: 'kg' as const, tutSeconds: 0 }, 'Repetitions'],
+    [{ kind: 'strength' as const, reps: 8, inputWeight: -1, inputUnit: 'kg' as const, tutSeconds: 0 }, 'Weight'],
+    [{ kind: 'strength' as const, reps: 8, inputWeight: 20, inputUnit: 'kg' as const, tutSeconds: -1 }, 'Time under tension'],
   ])('rejects invalid set data', (input, message) => {
-    expect(validateSetInput(input)).toContain(message);
+    expect(validateSetInput(input, 'free_weight')).toContain(message);
   });
 
   test('accepts zero weight and zero TUT', () => {
-    expect(validateSetInput({ reps: 1, inputWeight: 0, inputUnit: 'lb', tutSeconds: 0 })).toBeNull();
+    expect(validateSetInput({ kind: 'strength', reps: 1, inputWeight: 0, inputUnit: 'lb', tutSeconds: 0 }, 'machine')).toBeNull();
+  });
+
+  test('accepts omitted added weight only for body-weight exercises', () => {
+    const input = { kind: 'strength' as const, reps: 10, inputWeight: null, inputUnit: 'kg' as const, tutSeconds: 0 };
+    expect(validateSetInput(input, 'body_weight')).toBeNull();
+    expect(validateSetInput(input, 'free_weight')).toContain('Weight is required');
+  });
+
+  test('validates cardio metrics and rejects strength fields for cardio', () => {
+    expect(validateSetInput({ kind: 'duration', durationSeconds: 1 }, 'cardio')).toBeNull();
+    expect(validateSetInput({ kind: 'calories', calories: 120 }, 'cardio')).toBeNull();
+    expect(validateSetInput({ kind: 'calories', calories: 1.5 }, 'cardio')).toContain('whole number');
+    expect(validateSetInput({ kind: 'strength', reps: 8, inputWeight: 0, inputUnit: 'kg', tutSeconds: 0 }, 'cardio')).toContain('duration or calories');
   });
 });

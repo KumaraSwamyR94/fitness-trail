@@ -34,7 +34,7 @@ maestro test e2e/create-workout.yaml
 
 ## Data model
 
-SQLite is initialized in `data/migrations.ts`. Versioned migrations enable foreign keys and WAL journaling. Sessions own ordered exercises, exercises own ordered sets, and cascade deletion removes dependent workout data while preserving the reusable exercise catalog. BMI measurements are stored independently as a dated history. Entered weight plus full-precision kg/lb values and canonical height in centimetres are persisted; BMI is derived from canonical values instead of being duplicated in storage.
+SQLite is initialized in `data/migrations.ts`. Versioned migrations enable foreign keys and WAL journaling. Sessions own ordered exercises, exercises own ordered sets, and cascade deletion removes dependent workout data while preserving the reusable exercise catalog. Exercises are categorized as free weight, machine, body weight, or cardio; sets store a validated strength, duration, or calorie payload. BMI measurements are stored independently as a dated history. Entered weight plus full-precision kg/lb values and canonical height in centimetres are persisted; BMI is derived from canonical values instead of being duplicated in storage.
 
 The BMI tab is intended for adults aged 18 and older. BMI is presented as a screening measure rather than a diagnosis; age and gender are retained only as historical context and do not alter the adult calculation.
 

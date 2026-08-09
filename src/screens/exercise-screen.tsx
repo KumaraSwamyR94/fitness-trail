@@ -17,6 +17,7 @@ import type { SessionExercise, WorkoutSet } from '@/types/workout';
 import { warningFeedback } from '@/utils/feedback';
 import { track } from '@/utils/telemetry';
 import { formatWeight } from '@/utils/weight';
+import { exerciseTypeLabel, formatDuration } from '@/utils/workout';
 
 const setColumns = [
   { label: 'SET', flex: 0.62 },
@@ -26,7 +27,13 @@ const setColumns = [
   { label: 'TUT', flex: 0.9 },
 ] as const;
 
-function SetGridHeader(): React.ReactElement {
+const cardioColumns = [
+  { label: 'SET', flex: 0.7 },
+  { label: 'METRIC', flex: 1.3 },
+  { label: 'VALUE', flex: 1.6 },
+] as const;
+
+function SetGridHeader({ cardio }: { cardio: boolean }): React.ReactElement {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
   return (
@@ -34,7 +41,7 @@ function SetGridHeader(): React.ReactElement {
       importantForAccessibility="no-hide-descendants"
       style={{ flexDirection: 'row', paddingHorizontal: compact ? 8 : 14, paddingVertical: 9, gap: compact ? 2 : 4 }}
     >
-      {setColumns.map(({ label, flex }) => (
+      {(cardio ? cardioColumns : setColumns).map(({ label, flex }) => (
         <Text
           key={label}
           numberOfLines={1}
@@ -52,14 +59,22 @@ function SetGridHeader(): React.ReactElement {
 function SetRow({ workoutSet, onDelete, onEdit }: { workoutSet: WorkoutSet; onDelete: () => void; onEdit: () => void }) {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
-  const summary = `Set ${workoutSet.position + 1}, ${workoutSet.reps} repetitions, ${formatWeight(workoutSet.weightKg)} kilograms, ${formatWeight(workoutSet.weightLb)} pounds, ${workoutSet.tutSeconds} seconds time under tension`;
-  const cells: [string, number][] = [
-    [String(workoutSet.position + 1), setColumns[0].flex],
-    [String(workoutSet.reps), setColumns[1].flex],
-    [formatWeight(workoutSet.weightKg), setColumns[2].flex],
-    [formatWeight(workoutSet.weightLb), setColumns[3].flex],
-    [`${workoutSet.tutSeconds}s`, setColumns[4].flex],
-  ];
+  const summary = workoutSet.kind === 'duration'
+    ? `Set ${workoutSet.position + 1}, duration ${formatDuration(workoutSet.durationSeconds)}`
+    : workoutSet.kind === 'calories'
+      ? `Set ${workoutSet.position + 1}, ${workoutSet.calories} calories`
+      : `Set ${workoutSet.position + 1}, ${workoutSet.reps} repetitions, ${workoutSet.inputWeight === null ? 'no added weight' : `${formatWeight(workoutSet.weightKg ?? 0)} kilograms, ${formatWeight(workoutSet.weightLb ?? 0)} pounds`}, ${workoutSet.tutSeconds} seconds time under tension`;
+  const cells: [string, number][] = workoutSet.kind === 'duration'
+    ? [[String(workoutSet.position + 1), cardioColumns[0].flex], ['Duration', cardioColumns[1].flex], [formatDuration(workoutSet.durationSeconds), cardioColumns[2].flex]]
+    : workoutSet.kind === 'calories'
+      ? [[String(workoutSet.position + 1), cardioColumns[0].flex], ['Calories', cardioColumns[1].flex], [`${workoutSet.calories} kcal`, cardioColumns[2].flex]]
+      : [
+          [String(workoutSet.position + 1), setColumns[0].flex],
+          [String(workoutSet.reps), setColumns[1].flex],
+          [workoutSet.weightKg === null ? '—' : formatWeight(workoutSet.weightKg), setColumns[2].flex],
+          [workoutSet.weightLb === null ? '—' : formatWeight(workoutSet.weightLb), setColumns[3].flex],
+          [`${workoutSet.tutSeconds}s`, setColumns[4].flex],
+        ];
   return (
     <SwipeActionRow onDelete={onDelete} deleteLabel={`Delete set ${workoutSet.position + 1}`}>
       <Pressable
@@ -170,6 +185,7 @@ export default function ExerciseScreen(): React.ReactElement {
       >
         <View style={{ gap: 4, paddingBottom: 6 }}>
           <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+            {exercise ? `${exerciseTypeLabel(exercise.exerciseType)} · ` : ''}
             {exercise?.muscleGroupName ? `${exercise.muscleGroupName} · ` : ''}
             {sets.length} {sets.length === 1 ? 'working set' : 'working sets'}
           </Text>
@@ -177,7 +193,7 @@ export default function ExerciseScreen(): React.ReactElement {
             Training log
           </Text>
         </View>
-        {sets.length ? <SetGridHeader /> : null}
+        {sets.length ? <SetGridHeader cardio={exercise?.exerciseType === 'cardio'} /> : null}
         {sets.map((workoutSet) => (
           <Animated.View
             key={workoutSet.id}

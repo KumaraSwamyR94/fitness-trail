@@ -4,16 +4,25 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
+import { AppIcon, type AppIconProps } from '@/components/app-icon';
 import { FormField } from '@/components/form-field';
 import { SheetScaffold } from '@/components/sheet-scaffold';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { muscleGroupRepository } from '@/data/muscle-group-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
-import type { ExerciseCatalogEntry, MuscleGroupCatalogEntry } from '@/types/workout';
+import type { ExerciseCatalogEntry, ExerciseType, MuscleGroupCatalogEntry } from '@/types/workout';
 import { successFeedback } from '@/utils/feedback';
 import { normalizeName, validateName } from '@/utils/names';
 import { track } from '@/utils/telemetry';
+import { EXERCISE_TYPE_OPTIONS, exerciseTypeLabel } from '@/utils/workout';
+
+const exerciseTypeIcons: Record<ExerciseType, AppIconProps['name']> = {
+  free_weight: 'dumbbell',
+  machine: 'cog-outline',
+  body_weight: 'arm-flex-outline',
+  cardio: 'run-fast',
+};
 
 export default function AddExerciseScreen(): React.ReactElement {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -23,6 +32,7 @@ export default function AddExerciseScreen(): React.ReactElement {
   const [query, setQuery] = React.useState('');
   const [suggestions, setSuggestions] = React.useState<ExerciseCatalogEntry[]>([]);
   const [muscleGroupQuery, setMuscleGroupQuery] = React.useState('');
+  const [exerciseType, setExerciseType] = React.useState<ExerciseType>('free_weight');
   const [muscleGroupSuggestions, setMuscleGroupSuggestions] = React.useState<
     MuscleGroupCatalogEntry[]
   >([]);
@@ -61,9 +71,11 @@ export default function AddExerciseScreen(): React.ReactElement {
     (item) => item.normalizedName === normalizeName(muscleGroupQuery),
   );
 
-  const add = async (name: string, muscleGroupName: string) => {
+  const add = async (name: string, muscleGroupName: string, type: ExerciseType) => {
     const exerciseValidation = validateName(name);
-    const muscleGroupValidation = validateName(muscleGroupName);
+    const muscleGroupValidation = type === 'cardio' && !muscleGroupName.trim()
+      ? null
+      : validateName(muscleGroupName);
     setExerciseError(exerciseValidation);
     setMuscleGroupError(
       muscleGroupValidation === 'Enter a name.'
@@ -77,11 +89,12 @@ export default function AddExerciseScreen(): React.ReactElement {
     setExerciseError(null);
     setMuscleGroupError(null);
     try {
-      const exercise = await exerciseRepository.create(db, sessionId, name, muscleGroupName);
+      const exercise = await exerciseRepository.create(db, sessionId, name, muscleGroupName, type);
       notifyDataChanged();
       track('exercise_created', {
         exerciseId: exercise.id,
         muscleGroupId: exercise.muscleGroupId,
+        exerciseType: exercise.exerciseType,
       });
       successFeedback();
       router.back();
@@ -96,12 +109,14 @@ export default function AddExerciseScreen(): React.ReactElement {
     void add(
       exactMatch?.displayName ?? query,
       exactMuscleGroup?.displayName ?? muscleGroupQuery,
+      exerciseType,
     );
   };
 
   const selectExercise = (item: ExerciseCatalogEntry) => {
     setQuery(item.displayName);
     setMuscleGroupQuery(item.muscleGroupName ?? '');
+    setExerciseType(item.exerciseType);
     setExerciseError(null);
     setMuscleGroupError(null);
   };
@@ -113,14 +128,13 @@ export default function AddExerciseScreen(): React.ReactElement {
           label={exactMatch ? `Add ${exactMatch.displayName}` : 'Create New Exercise'}
           onPress={addCurrentExercise}
           loading={saving}
-          disabled={!query.trim() || !muscleGroupQuery.trim()}
+          disabled={!query.trim() || (exerciseType !== 'cardio' && !muscleGroupQuery.trim())}
           testID="create-exercise"
         />
       }
     >
       <Text selectable style={{ color: theme.colors.textMuted, lineHeight: 21 }}>
-        Search your exercise history or create a reusable exercise and assign its primary muscle
-        group.
+        Search your exercise history or create a reusable exercise with the right training type.
       </Text>
       <FormField
         label="Exercise name"
@@ -133,16 +147,52 @@ export default function AddExerciseScreen(): React.ReactElement {
         autoFocus
         returnKeyType="done"
         onSubmitEditing={() => {
-          if (query.trim() && muscleGroupQuery.trim()) addCurrentExercise();
-          else if (!muscleGroupQuery.trim()) setMuscleGroupError('Choose or enter a muscle group.');
+          if (query.trim() && (exerciseType === 'cardio' || muscleGroupQuery.trim())) addCurrentExercise();
+          else if (exerciseType !== 'cardio' && !muscleGroupQuery.trim()) setMuscleGroupError('Choose or enter a muscle group.');
         }}
         maxLength={80}
         error={exerciseError}
         testID="exercise-name"
       />
+      <View style={{ gap: 9 }}>
+        <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>Exercise type</Text>
+        <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {EXERCISE_TYPE_OPTIONS.map((option) => {
+            const selected = option.value === exerciseType;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={option.label}
+                testID={`exercise-type-${option.value}`}
+                onPress={() => { setExerciseType(option.value); setMuscleGroupError(null); }}
+                style={({ pressed }) => ({
+                  width: '48%', minHeight: 46, flexGrow: 1, justifyContent: 'center', alignItems: 'center',
+                  paddingHorizontal: 12, borderRadius: 14, borderCurve: 'continuous', borderWidth: 1,
+                  borderColor: selected ? theme.colors.accent : theme.colors.border,
+                  backgroundColor: selected ? theme.colors.accentSoft : pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+                })}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <AppIcon
+                    name={exerciseTypeIcons[option.value]}
+                    color={selected ? theme.colors.accent : theme.colors.textMuted}
+                    size={21}
+                  />
+                  <Text selectable style={{ color: selected ? theme.colors.accent : theme.colors.text, fontWeight: '700' }}>
+                    {option.label}
+                  </Text>
+                  {selected ? <AppIcon name="check-circle" color={theme.colors.accent} size={16} /> : null}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
       <View style={{ gap: 10 }}>
         <FormField
-          label="Muscle Group"
+          label={`Muscle Group${exerciseType === 'cardio' ? ' — optional' : ''}`}
           value={muscleGroupQuery}
           onChangeText={(value) => {
             setMuscleGroupQuery(value);
@@ -151,7 +201,7 @@ export default function AddExerciseScreen(): React.ReactElement {
           placeholder="e.g. Chest"
           returnKeyType="done"
           onSubmitEditing={() => {
-            if (query.trim() && muscleGroupQuery.trim()) addCurrentExercise();
+            if (query.trim() && (exerciseType === 'cardio' || muscleGroupQuery.trim())) addCurrentExercise();
           }}
           maxLength={80}
           error={muscleGroupError}
@@ -247,6 +297,9 @@ export default function AddExerciseScreen(): React.ReactElement {
                   {item.muscleGroupName}
                 </Text>
               ) : null}
+              <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}>
+                {exerciseTypeLabel(item.exerciseType)}
+              </Text>
             </Pressable>
           ))
         )}

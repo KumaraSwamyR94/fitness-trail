@@ -14,6 +14,7 @@ appId: com.uniquedev.fitnesstrail
 - tapOn:
     id: exercise-name
 - inputText: Barbell Squat
+- tapOn: Quadriceps
 - tapOn:
     id: create-exercise
 - assertVisible: Barbell Squat
@@ -35,6 +36,60 @@ appId: com.uniquedev.fitnesstrail
 - tapOn:
     id: save-set
 - assertVisible: "220.46"
+- back
+- tapOn:
+    id: add-exercise
+- tapOn:
+    id: exercise-name
+- inputText: Push Up
+- tapOn:
+    id: exercise-type-body_weight
+- tapOn: Chest
+- tapOn:
+    id: create-exercise
+- tapOn: Push Up
+- tapOn:
+    id: add-set
+- tapOn:
+    id: set-reps
+- eraseText
+- inputText: "12"
+- tapOn:
+    id: save-set
+- assertVisible: "12"
+- back
+- tapOn:
+    id: add-exercise
+- tapOn:
+    id: exercise-name
+- inputText: Running
+- tapOn:
+    id: exercise-type-cardio
+- tapOn:
+    id: create-exercise
+- tapOn: Running
+- tapOn:
+    id: add-set
+- tapOn:
+    id: set-duration-minutes
+- eraseText
+- inputText: "10"
+- tapOn:
+    id: set-duration-seconds
+- eraseText
+- inputText: "30"
+- tapOn:
+    id: save-set
+- assertVisible: "10:30"
+- tapOn:
+    id: add-set
+- tapOn: Calories
+- tapOn:
+    id: set-calories
+- inputText: "120"
+- tapOn:
+    id: save-set
+- assertVisible: "120 kcal"
 - stopApp
 - launchApp
 - assertVisible: Fitness Trail

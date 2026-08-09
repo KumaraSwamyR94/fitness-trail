@@ -6,8 +6,11 @@ import { upsertMuscleGroup } from '@/data/muscle-group-repository';
 import type {
   ExerciseCatalogEntry,
   ExerciseSummary,
+  ExerciseType,
   SessionExercise,
+  SetKind,
   WeightUnit,
+  WorkoutSetSummary,
 } from '@/types/workout';
 import { cleanDisplayName, normalizeName } from '@/utils/names';
 
@@ -19,6 +22,7 @@ interface ExerciseRow {
   normalized_name: string;
   muscle_group_id: string | null;
   muscle_group_name: string | null;
+  exercise_type: ExerciseType;
   position: number;
   created_at: number;
   updated_at: number;
@@ -26,10 +30,15 @@ interface ExerciseRow {
 
 interface ExerciseSummaryRow extends ExerciseRow {
   set_count: number;
+  last_set_kind: SetKind | null;
   last_reps: number | null;
+  last_input_weight: number | null;
   last_weight_kg: number | null;
   last_weight_lb: number | null;
   last_input_unit: WeightUnit | null;
+  last_tut_seconds: number | null;
+  last_duration_seconds: number | null;
+  last_calories: number | null;
 }
 
 interface CatalogRow {
@@ -38,6 +47,7 @@ interface CatalogRow {
   display_name: string;
   muscle_group_id: string | null;
   muscle_group_name: string | null;
+  exercise_type: ExerciseType;
   use_count: number;
   last_used_at: number;
 }
@@ -51,6 +61,7 @@ function mapExercise(row: ExerciseRow): SessionExercise {
     normalizedName: row.normalized_name,
     muscleGroupId: row.muscle_group_id,
     muscleGroupName: row.muscle_group_name,
+    exerciseType: row.exercise_type,
     position: row.position,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -61,11 +72,29 @@ function mapSummary(row: ExerciseSummaryRow): ExerciseSummary {
   return {
     ...mapExercise(row),
     setCount: row.set_count,
-    lastReps: row.last_reps,
-    lastWeightKg: row.last_weight_kg,
-    lastWeightLb: row.last_weight_lb,
-    lastInputUnit: row.last_input_unit,
+    lastSet: mapLastSet(row),
   };
+}
+
+function mapLastSet(row: ExerciseSummaryRow): WorkoutSetSummary | null {
+  if (row.last_set_kind === 'duration' && row.last_duration_seconds !== null) {
+    return { kind: 'duration', durationSeconds: row.last_duration_seconds };
+  }
+  if (row.last_set_kind === 'calories' && row.last_calories !== null) {
+    return { kind: 'calories', calories: row.last_calories };
+  }
+  if (row.last_set_kind === 'strength' && row.last_reps !== null && row.last_input_unit) {
+    return {
+      kind: 'strength',
+      reps: row.last_reps,
+      inputWeight: row.last_input_weight,
+      inputUnit: row.last_input_unit,
+      weightKg: row.last_weight_kg,
+      weightLb: row.last_weight_lb,
+      tutSeconds: row.last_tut_seconds ?? 0,
+    };
+  }
+  return null;
 }
 
 function mapCatalog(row: CatalogRow): ExerciseCatalogEntry {
@@ -75,6 +104,7 @@ function mapCatalog(row: CatalogRow): ExerciseCatalogEntry {
     displayName: row.display_name,
     muscleGroupId: row.muscle_group_id,
     muscleGroupName: row.muscle_group_name,
+    exerciseType: row.exercise_type,
     useCount: row.use_count,
     lastUsedAt: row.last_used_at,
   };
@@ -85,15 +115,17 @@ async function upsertCatalog(
   displayName: string,
   normalizedName: string,
   muscleGroupId: string | null,
+  exerciseType: ExerciseType,
 ): Promise<string> {
   const now = Date.now();
   await db.runAsync(
     `INSERT INTO exercise_catalog
-      (id, normalized_name, display_name, use_count, last_used_at, created_at, updated_at, muscle_group_id)
-     VALUES (?, ?, ?, 1, ?, ?, ?, ?)
+      (id, normalized_name, display_name, use_count, last_used_at, created_at, updated_at, muscle_group_id, exercise_type)
+     VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
      ON CONFLICT(normalized_name) DO UPDATE SET
        display_name = excluded.display_name,
-       muscle_group_id = COALESCE(excluded.muscle_group_id, exercise_catalog.muscle_group_id),
+       muscle_group_id = excluded.muscle_group_id,
+       exercise_type = excluded.exercise_type,
        use_count = exercise_catalog.use_count + 1,
        last_used_at = excluded.last_used_at,
        updated_at = excluded.updated_at`,
@@ -104,6 +136,7 @@ async function upsertCatalog(
     now,
     now,
     muscleGroupId,
+    exerciseType,
   );
   const row = await db.getFirstAsync<{ id: string }>(
     'SELECT id FROM exercise_catalog WHERE normalized_name = ?',
@@ -132,13 +165,21 @@ export const exerciseRepository = {
     const rows = await db.getAllAsync<ExerciseSummaryRow>(
       `SELECT se.*, mg.display_name AS muscle_group_name,
         COUNT(ws.id) AS set_count,
-        (SELECT reps FROM workout_sets WHERE exercise_id = se.id ORDER BY position DESC LIMIT 1) AS last_reps,
-        (SELECT weight_kg FROM workout_sets WHERE exercise_id = se.id ORDER BY position DESC LIMIT 1) AS last_weight_kg,
-        (SELECT weight_lb FROM workout_sets WHERE exercise_id = se.id ORDER BY position DESC LIMIT 1) AS last_weight_lb,
-        (SELECT input_unit FROM workout_sets WHERE exercise_id = se.id ORDER BY position DESC LIMIT 1) AS last_input_unit
+        last_ws.set_kind AS last_set_kind,
+        last_ws.reps AS last_reps,
+        last_ws.input_weight AS last_input_weight,
+        last_ws.weight_kg AS last_weight_kg,
+        last_ws.weight_lb AS last_weight_lb,
+        last_ws.input_unit AS last_input_unit,
+        last_ws.tut_seconds AS last_tut_seconds,
+        last_ws.duration_seconds AS last_duration_seconds,
+        last_ws.calories AS last_calories
        FROM session_exercises se
        LEFT JOIN muscle_group_catalog mg ON mg.id = se.muscle_group_id
        LEFT JOIN workout_sets ws ON ws.exercise_id = se.id
+       LEFT JOIN workout_sets last_ws ON last_ws.id = (
+         SELECT id FROM workout_sets WHERE exercise_id = se.id ORDER BY position DESC LIMIT 1
+       )
        WHERE se.session_id = ?
        GROUP BY se.id
        ORDER BY se.position`,
@@ -161,7 +202,7 @@ export const exerciseRepository = {
   async searchCatalog(db: SQLiteDatabase, query: string, limit = 20): Promise<ExerciseCatalogEntry[]> {
     const normalized = normalizeName(query);
     const rows = await db.getAllAsync<CatalogRow>(
-      `SELECT ec.id, ec.normalized_name, ec.display_name, ec.use_count, ec.last_used_at,
+      `SELECT ec.id, ec.normalized_name, ec.display_name, ec.use_count, ec.last_used_at, ec.exercise_type,
               ec.muscle_group_id, mg.display_name AS muscle_group_name
        FROM exercise_catalog ec
        LEFT JOIN muscle_group_catalog mg ON mg.id = ec.muscle_group_id
@@ -182,7 +223,11 @@ export const exerciseRepository = {
     sessionId: string,
     name: string,
     muscleGroupName: string,
+    exerciseType: ExerciseType,
   ): Promise<SessionExercise> {
+    if (exerciseType !== 'cardio' && !muscleGroupName.trim()) {
+      throw new Error('Choose or enter a muscle group.');
+    }
     const displayName = cleanDisplayName(name);
     const normalizedName = normalizeName(name);
     let created: SessionExercise | null = null;
@@ -193,12 +238,15 @@ export const exerciseRepository = {
         normalizedName,
       );
       if (duplicate) throw new DataConflictError('This exercise is already in the session.');
-      const muscleGroup = await upsertMuscleGroup(transaction, muscleGroupName);
+      const muscleGroup = muscleGroupName.trim()
+        ? await upsertMuscleGroup(transaction, muscleGroupName)
+        : null;
       const catalogId = await upsertCatalog(
         transaction,
         displayName,
         normalizedName,
-        muscleGroup.id,
+        muscleGroup?.id ?? null,
+        exerciseType,
       );
       const positionRow = await transaction.getFirstAsync<{ next_position: number }>(
         'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM session_exercises WHERE session_id = ?',
@@ -211,22 +259,24 @@ export const exerciseRepository = {
         catalogId,
         displayName,
         normalizedName,
-        muscleGroupId: muscleGroup.id,
-        muscleGroupName: muscleGroup.displayName,
+        muscleGroupId: muscleGroup?.id ?? null,
+        muscleGroupName: muscleGroup?.displayName ?? null,
+        exerciseType,
         position: positionRow?.next_position ?? 0,
         createdAt: now,
         updatedAt: now,
       };
       await transaction.runAsync(
         `INSERT INTO session_exercises
-         (id, session_id, catalog_id, display_name, normalized_name, muscle_group_id, position, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, session_id, catalog_id, display_name, normalized_name, muscle_group_id, exercise_type, position, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         created.id,
         created.sessionId,
         created.catalogId,
         created.displayName,
         created.normalizedName,
         created.muscleGroupId,
+        created.exerciseType,
         created.position,
         created.createdAt,
         created.updatedAt,
@@ -248,8 +298,11 @@ export const exerciseRepository = {
         id,
       );
       if (duplicate) throw new DataConflictError('This exercise is already in the session.');
-      const current = await transaction.getFirstAsync<{ muscle_group_id: string | null }>(
-        'SELECT muscle_group_id FROM session_exercises WHERE id = ?',
+      const current = await transaction.getFirstAsync<{
+        muscle_group_id: string | null;
+        exercise_type: ExerciseType;
+      }>(
+        'SELECT muscle_group_id, exercise_type FROM session_exercises WHERE id = ?',
         id,
       );
       const catalogId = await upsertCatalog(
@@ -257,6 +310,7 @@ export const exerciseRepository = {
         displayName,
         normalizedName,
         current?.muscle_group_id ?? null,
+        current?.exercise_type ?? 'free_weight',
       );
       await transaction.runAsync(
         `UPDATE session_exercises SET catalog_id = ?, display_name = ?,
