@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, View } from 'react-native';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { setRepository } from '@/data/set-repository';
+import { useProfiles } from '@/data/profile-context';
 import { SetForm } from '@/features/sets/set-form';
 import { useAppTheme } from '@/theme/use-app-theme';
 import type { ExerciseType, SetInput } from '@/types/workout';
@@ -17,12 +18,21 @@ export default function EditSetScreen(): React.ReactElement {
   const db = useSQLiteContext();
   const theme = useAppTheme();
   const { notifyDataChanged } = useDataChange();
+  const { selectedProfile, loading } = useProfiles();
   const [initialValue, setInitialValue] = React.useState<SetInput | null>(null);
   const [exerciseType, setExerciseType] = React.useState<ExerciseType | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    void Promise.all([setRepository.get(db, setId), exerciseRepository.get(db, exerciseId)]).then(([workoutSet, exercise]) => {
+    if (loading) return;
+    if (!selectedProfile) {
+      router.replace('/');
+      return;
+    }
+    void Promise.all([
+      setRepository.get(db, selectedProfile.id, setId),
+      exerciseRepository.get(db, selectedProfile.id, exerciseId),
+    ]).then(([workoutSet, exercise]) => {
       if (!workoutSet) {
         Alert.alert('Set not found', 'It may have already been deleted.', [{ text: 'Close', onPress: () => router.back() }]);
         return;
@@ -32,12 +42,13 @@ export default function EditSetScreen(): React.ReactElement {
       else if (workoutSet.kind === 'duration') setInitialValue({ kind: 'duration', durationSeconds: workoutSet.durationSeconds });
       else setInitialValue({ kind: 'calories', calories: workoutSet.calories });
     });
-  }, [db, exerciseId, setId]);
+  }, [db, exerciseId, loading, selectedProfile, setId]);
 
   const save = async (input: SetInput) => {
     setSubmitting(true);
     try {
-      await setRepository.update(db, setId, input);
+      if (!selectedProfile) throw new Error('Choose a profile first.');
+      await setRepository.update(db, selectedProfile.id, setId, input);
       notifyDataChanged();
       track('set_updated', { setId });
       successFeedback();

@@ -11,6 +11,7 @@ import { SwipeActionRow } from '@/components/swipe-action-row';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { setRepository } from '@/data/set-repository';
+import { useProfiles } from '@/data/profile-context';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
 import type { SessionExercise, WorkoutSet } from '@/types/workout';
@@ -120,18 +121,27 @@ export default function ExerciseScreen(): React.ReactElement {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const { version, notifyDataChanged } = useDataChange();
+  const { selectedProfile, loading: profilesLoading } = useProfiles();
   const [exercise, setExercise] = React.useState<SessionExercise | null>(null);
   const [sets, setSets] = React.useState<WorkoutSet[]>([]);
   const [refreshing, setRefreshing] = React.useState(false);
 
   const load = React.useCallback(async () => {
+    if (!selectedProfile) {
+      if (!profilesLoading) router.replace('/');
+      return;
+    }
     const [nextExercise, nextSets] = await Promise.all([
-      exerciseRepository.get(db, exerciseId),
-      setRepository.listForExercise(db, exerciseId),
+      exerciseRepository.get(db, selectedProfile.id, exerciseId),
+      setRepository.listForExercise(db, selectedProfile.id, exerciseId),
     ]);
+    if (!nextExercise) {
+      router.replace('/');
+      return;
+    }
     setExercise(nextExercise);
     setSets(nextSets);
-  }, [db, exerciseId]);
+  }, [db, exerciseId, profilesLoading, selectedProfile]);
 
   useFocusEffect(React.useCallback(() => {
     void version;
@@ -152,7 +162,8 @@ export default function ExerciseScreen(): React.ReactElement {
         onPress: () => {
           const previous = sets;
           setSets((current) => current.filter((item) => item.id !== workoutSet.id).map((item, position) => ({ ...item, position })));
-          void setRepository.remove(db, workoutSet.id, exerciseId).then(() => {
+          if (!selectedProfile) return;
+          void setRepository.remove(db, selectedProfile.id, workoutSet.id, exerciseId).then(() => {
             warningFeedback();
             notifyDataChanged();
             track('set_deleted', { setId: workoutSet.id, exerciseId });

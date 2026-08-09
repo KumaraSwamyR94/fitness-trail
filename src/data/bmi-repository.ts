@@ -1,14 +1,17 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { BmiMeasurement, BmiMeasurementInput, Gender, HeightUnit } from '@/types/bmi';
+import type { BmiMeasurement, BmiMeasurementDraft, BmiMeasurementInput, Gender, HeightUnit } from '@/types/bmi';
+import type { Profile } from '@/types/profile';
 import type { WeightUnit } from '@/types/workout';
 import { calculateBmi, firstBmiValidationError, validateBmiMeasurementInput } from '@/utils/bmi';
 import { toLocalDateKey } from '@/utils/dates';
 import { convertWeight } from '@/utils/weight';
+import { profileAgeOnDate } from '@/utils/profiles';
 
 interface BmiMeasurementRow {
   id: string;
+  profile_id: string;
   measured_at: number;
   local_date: string;
   timezone_offset_minutes: number;
@@ -27,6 +30,7 @@ interface BmiMeasurementRow {
 function mapMeasurement(row: BmiMeasurementRow): BmiMeasurement {
   return {
     id: row.id,
+    profileId: row.profile_id,
     measuredAt: row.measured_at,
     localDate: row.local_date,
     timezoneOffsetMinutes: row.timezone_offset_minutes,
@@ -50,32 +54,47 @@ function validate(input: BmiMeasurementInput): void {
 }
 
 export const bmiRepository = {
-  async listAll(db: SQLiteDatabase): Promise<BmiMeasurement[]> {
+  async listAll(db: SQLiteDatabase, profileId: string): Promise<BmiMeasurement[]> {
     const rows = await db.getAllAsync<BmiMeasurementRow>(
-      'SELECT * FROM bmi_measurements ORDER BY measured_at DESC, created_at DESC',
+      'SELECT * FROM bmi_measurements WHERE profile_id = ? ORDER BY measured_at DESC, created_at DESC',
+      profileId,
     );
     return rows.map(mapMeasurement);
   },
 
-  async getLatest(db: SQLiteDatabase): Promise<BmiMeasurement | null> {
+  async getLatest(db: SQLiteDatabase, profileId: string): Promise<BmiMeasurement | null> {
     const row = await db.getFirstAsync<BmiMeasurementRow>(
-      'SELECT * FROM bmi_measurements ORDER BY measured_at DESC, created_at DESC LIMIT 1',
+      `SELECT * FROM bmi_measurements WHERE profile_id = ?
+       ORDER BY measured_at DESC, created_at DESC LIMIT 1`,
+      profileId,
     );
     return row ? mapMeasurement(row) : null;
   },
 
-  async get(db: SQLiteDatabase, id: string): Promise<BmiMeasurement | null> {
-    const row = await db.getFirstAsync<BmiMeasurementRow>('SELECT * FROM bmi_measurements WHERE id = ?', id);
+  async get(db: SQLiteDatabase, profileId: string, id: string): Promise<BmiMeasurement | null> {
+    const row = await db.getFirstAsync<BmiMeasurementRow>(
+      'SELECT * FROM bmi_measurements WHERE id = ? AND profile_id = ?',
+      id,
+      profileId,
+    );
     return row ? mapMeasurement(row) : null;
   },
 
-  async create(db: SQLiteDatabase, input: BmiMeasurementInput): Promise<BmiMeasurement> {
+  async create(db: SQLiteDatabase, profile: Profile, draft: BmiMeasurementDraft): Promise<BmiMeasurement> {
+    const input: BmiMeasurementInput = {
+      ...draft,
+      inputHeightUnit: profile.inputHeightUnit,
+      heightCm: profile.heightCm,
+      ageYears: profileAgeOnDate(profile, draft.measuredAt),
+      gender: profile.gender,
+    };
     validate(input);
     const now = Date.now();
     const measuredAt = input.measuredAt.getTime();
     const weight = convertWeight(input.inputWeight, input.inputWeightUnit);
     const measurement: BmiMeasurement = {
       id: randomUUID(),
+      profileId: profile.id,
       measuredAt,
       localDate: toLocalDateKey(input.measuredAt),
       timezoneOffsetMinutes: input.measuredAt.getTimezoneOffset(),
@@ -93,10 +112,11 @@ export const bmiRepository = {
     };
     await db.runAsync(
       `INSERT INTO bmi_measurements
-       (id, measured_at, local_date, timezone_offset_minutes, input_weight, input_weight_unit,
+       (id, profile_id, measured_at, local_date, timezone_offset_minutes, input_weight, input_weight_unit,
         weight_kg, weight_lb, input_height_unit, height_cm, age_years, gender, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       measurement.id,
+      measurement.profileId,
       measurement.measuredAt,
       measurement.localDate,
       measurement.timezoneOffsetMinutes,
@@ -114,13 +134,22 @@ export const bmiRepository = {
     return measurement;
   },
 
-  async update(db: SQLiteDatabase, id: string, input: BmiMeasurementInput): Promise<void> {
+  async update(db: SQLiteDatabase, profileId: string, id: string, draft: BmiMeasurementDraft): Promise<void> {
+    const current = await this.get(db, profileId, id);
+    if (!current) throw new Error('Measurement not found.');
+    const input: BmiMeasurementInput = {
+      ...draft,
+      inputHeightUnit: current.inputHeightUnit,
+      heightCm: current.heightCm,
+      ageYears: current.ageYears,
+      gender: current.gender,
+    };
     validate(input);
     const weight = convertWeight(input.inputWeight, input.inputWeightUnit);
     await db.runAsync(
       `UPDATE bmi_measurements SET measured_at = ?, local_date = ?, timezone_offset_minutes = ?,
-       input_weight = ?, input_weight_unit = ?, weight_kg = ?, weight_lb = ?, input_height_unit = ?,
-       height_cm = ?, age_years = ?, gender = ?, updated_at = ? WHERE id = ?`,
+       input_weight = ?, input_weight_unit = ?, weight_kg = ?, weight_lb = ?, updated_at = ?
+       WHERE id = ? AND profile_id = ?`,
       input.measuredAt.getTime(),
       toLocalDateKey(input.measuredAt),
       input.measuredAt.getTimezoneOffset(),
@@ -128,16 +157,18 @@ export const bmiRepository = {
       input.inputWeightUnit,
       weight.weightKg,
       weight.weightLb,
-      input.inputHeightUnit,
-      input.heightCm,
-      input.ageYears,
-      input.gender,
       Date.now(),
       id,
+      profileId,
     );
   },
 
-  async remove(db: SQLiteDatabase, id: string): Promise<void> {
-    await db.runAsync('DELETE FROM bmi_measurements WHERE id = ?', id);
+  async remove(db: SQLiteDatabase, profileId: string, id: string): Promise<void> {
+    const result = await db.runAsync(
+      'DELETE FROM bmi_measurements WHERE id = ? AND profile_id = ?',
+      id,
+      profileId,
+    );
+    if (result.changes === 0) throw new Error('Measurement not found.');
   },
 };

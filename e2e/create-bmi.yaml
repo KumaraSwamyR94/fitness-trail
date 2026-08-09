@@ -2,6 +2,22 @@ appId: com.uniquedev.fitnesstrail
 ---
 - launchApp:
     clearState: true
+- tapOn: Profiles
+- tapOn:
+    id: add-profile
+- tapOn:
+    id: profile-name
+- inputText: Alex
+- tapOn:
+    id: profile-age
+- inputText: "30"
+- tapOn:
+    id: profile-height-cm
+- inputText: "175"
+- tapOn:
+    id: profile-gender-woman
+- tapOn:
+    id: save-profile
 - tapOn: BMI
 - assertVisible: Start your BMI trail
 - tapOn:
@@ -10,14 +26,6 @@ appId: com.uniquedev.fitnesstrail
 - tapOn:
     id: bmi-weight
 - inputText: "70"
-- tapOn:
-    id: bmi-height-cm
-- inputText: "175"
-- tapOn:
-    id: bmi-age
-- inputText: "30"
-- tapOn:
-    id: bmi-gender-woman
 - tapOn:
     id: save-bmi-measurement
 - assertVisible: "22.9"
@@ -33,7 +41,6 @@ appId: com.uniquedev.fitnesstrail
     id: bmi-weight
 - eraseText
 - inputText: "160"
-- tapOn: Feet & inches
 - tapOn:
     id: save-bmi-measurement
 - assertVisible: "23.7"

@@ -9,6 +9,7 @@ export default function TabsLayout(): React.ReactElement {
   const [tabIcons, setTabIcons] = React.useState<{
     workouts: Awaited<ReturnType<typeof MaterialDesignIcons.getImageSource>>;
     bmi: Awaited<ReturnType<typeof MaterialDesignIcons.getImageSource>>;
+    profiles: Awaited<ReturnType<typeof MaterialDesignIcons.getImageSource>>;
   }>();
 
   React.useEffect(() => {
@@ -16,8 +17,9 @@ export default function TabsLayout(): React.ReactElement {
     void Promise.all([
       MaterialDesignIcons.getImageSource('weight-lifter', 24, '#FFFFFF'),
       MaterialDesignIcons.getImageSource('scale-bathroom', 24, '#FFFFFF'),
-    ]).then(([workouts, bmi]) => {
-      if (mounted) setTabIcons({ workouts, bmi });
+      MaterialDesignIcons.getImageSource('account-circle', 24, '#FFFFFF'),
+    ]).then(([workouts, bmi, profiles]) => {
+      if (mounted) setTabIcons({ workouts, bmi, profiles });
     });
     return () => {
       mounted = false;
@@ -39,6 +41,10 @@ export default function TabsLayout(): React.ReactElement {
           renderingMode="template"
         />
         <NativeTabs.Trigger.Label>BMI</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profiles">
+        <NativeTabs.Trigger.Icon src={tabIcons?.profiles} renderingMode="template" />
+        <NativeTabs.Trigger.Label>Profiles</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );

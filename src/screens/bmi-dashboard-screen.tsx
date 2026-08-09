@@ -7,9 +7,11 @@ import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react
 import { AppButton } from '@/components/app-button';
 import { BmiTrendChart } from '@/components/bmi-trend-chart';
 import { EmptyState } from '@/components/empty-state';
+import { SelectedProfileCard } from '@/components/selected-profile-card';
 import { SwipeActionRow } from '@/components/swipe-action-row';
 import { bmiRepository } from '@/data/bmi-repository';
 import { useDataChange } from '@/data/data-change-context';
+import { useProfiles } from '@/data/profile-context';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
 import type { BmiMeasurement, BmiMetric, BmiRange } from '@/types/bmi';
@@ -89,6 +91,7 @@ export default function BmiDashboardScreen(): React.ReactElement {
   const theme = useAppTheme();
   const { horizontalPadding } = useResponsiveLayout();
   const { version, notifyDataChanged } = useDataChange();
+  const { selectedProfile, loading: profilesLoading } = useProfiles();
   const [measurements, setMeasurements] = React.useState<BmiMeasurement[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [metric, setMetric] = React.useState<BmiMetric>('bmi');
@@ -96,15 +99,20 @@ export default function BmiDashboardScreen(): React.ReactElement {
 
   const load = React.useCallback(async () => {
     setLoading(true);
+    if (!selectedProfile) {
+      setMeasurements([]);
+      setLoading(false);
+      return;
+    }
     try {
-      setMeasurements(await bmiRepository.listAll(db));
+      setMeasurements(await bmiRepository.listAll(db, selectedProfile.id));
     } catch (error) {
       track('database_error', { operation: 'bmi_list', message: String(error) });
       Alert.alert('BMI history could not be loaded', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [db]);
+  }, [db, selectedProfile]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -131,7 +139,8 @@ export default function BmiDashboardScreen(): React.ReactElement {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            void bmiRepository.remove(db, measurement.id).then(() => {
+            if (!selectedProfile) return;
+            void bmiRepository.remove(db, selectedProfile.id, measurement.id).then(() => {
               setMeasurements((current) => current.filter((item) => item.id !== measurement.id));
               notifyDataChanged();
               track('bmi_measurement_deleted', { measurementId: measurement.id });
@@ -144,7 +153,7 @@ export default function BmiDashboardScreen(): React.ReactElement {
         },
       ],
     );
-  }, [db, notifyDataChanged]);
+  }, [db, notifyDataChanged, selectedProfile]);
 
   const header = (
     <View style={{ gap: 18 }}>
@@ -157,7 +166,13 @@ export default function BmiDashboardScreen(): React.ReactElement {
         </Text>
       </View>
 
-      {loading && !latest ? (
+      {selectedProfile ? <SelectedProfileCard profile={selectedProfile} /> : null}
+
+      {!selectedProfile && !profilesLoading ? (
+        <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, borderCurve: 'continuous' }}>
+          <EmptyState title="Choose a profile first" message="Create a profile before adding BMI measurements." icon={{ name: 'account-plus-outline' }} />
+        </View>
+      ) : loading && !latest ? (
         <ActivityIndicator color={theme.colors.accent} style={{ padding: 34 }} />
       ) : latest ? (
         <View
@@ -220,13 +235,13 @@ export default function BmiDashboardScreen(): React.ReactElement {
       )}
 
       <AppButton
-        label="Add Measurement"
-        icon={{ name: 'plus' }}
-        onPress={() => router.push('/bmi/measurements/new')}
+        label={selectedProfile ? 'Add Measurement' : 'Create Profile'}
+        icon={{ name: selectedProfile ? 'plus' : 'account-plus-outline' }}
+        onPress={() => router.push(selectedProfile ? '/bmi/measurements/new' : '/profiles/new')}
         testID="add-bmi-measurement"
       />
 
-      <View
+      {selectedProfile ? <View
         style={{
           borderRadius: 20,
           borderCurve: 'continuous',
@@ -260,14 +275,14 @@ export default function BmiDashboardScreen(): React.ReactElement {
           testID="bmi-range-control"
         />
         <BmiTrendChart measurements={filteredMeasurements} metric={metric} weightUnit={weightUnit} />
-      </View>
+      </View> : null}
 
-      <View style={{ gap: 4 }}>
+      {selectedProfile ? <View style={{ gap: 4 }}>
         <Text selectable style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900' }}>History</Text>
         <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
           Tap to edit or swipe left to delete.
         </Text>
-      </View>
+      </View> : null}
     </View>
   );
 
@@ -279,7 +294,7 @@ export default function BmiDashboardScreen(): React.ReactElement {
       ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
       ListHeaderComponent={header}
       ListHeaderComponentStyle={{ paddingBottom: measurements.length > 0 ? 12 : 0 }}
-      ListEmptyComponent={!loading ? (
+      ListEmptyComponent={!loading && selectedProfile ? (
         <Text selectable style={{ color: theme.colors.textMuted, textAlign: 'center', paddingVertical: 12 }}>
           Your saved measurements will appear here.
         </Text>

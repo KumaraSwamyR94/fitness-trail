@@ -11,6 +11,7 @@ import { SwipeActionRow } from '@/components/swipe-action-row';
 import { AppIcon } from '@/components/app-icon';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
+import { useProfiles } from '@/data/profile-context';
 import { sessionRepository } from '@/data/session-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
@@ -27,6 +28,7 @@ export default function SessionScreen(): React.ReactElement {
   const { horizontalPadding } = useResponsiveLayout();
   const insets = useSafeAreaInsets();
   const { version, notifyDataChanged } = useDataChange();
+  const { selectedProfile, loading: profilesLoading } = useProfiles();
   const [session, setSession] = React.useState<Session | null>(null);
   const [exercises, setExercises] = React.useState<ExerciseSummary[]>([]);
   const [refreshing, setRefreshing] = React.useState(false);
@@ -35,13 +37,21 @@ export default function SessionScreen(): React.ReactElement {
   const [renameError, setRenameError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
+    if (!selectedProfile) {
+      if (!profilesLoading) router.replace('/');
+      return;
+    }
     const [nextSession, nextExercises] = await Promise.all([
-      sessionRepository.get(db, sessionId),
-      exerciseRepository.listForSession(db, sessionId),
+      sessionRepository.get(db, selectedProfile.id, sessionId),
+      exerciseRepository.listForSession(db, selectedProfile.id, sessionId),
     ]);
+    if (!nextSession) {
+      router.replace('/');
+      return;
+    }
     setSession(nextSession);
     setExercises(nextExercises);
-  }, [db, sessionId]);
+  }, [db, profilesLoading, selectedProfile, sessionId]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -69,7 +79,8 @@ export default function SessionScreen(): React.ReactElement {
           text: 'Delete Session',
           style: 'destructive',
           onPress: () => {
-            void sessionRepository.remove(db, sessionId).then(() => {
+            if (!selectedProfile) return;
+            void sessionRepository.remove(db, selectedProfile.id, sessionId).then(() => {
               warningFeedback();
               notifyDataChanged();
               track('session_deleted', { sessionId });
@@ -79,7 +90,7 @@ export default function SessionScreen(): React.ReactElement {
         },
       ],
     );
-  }, [db, notifyDataChanged, sessionId]);
+  }, [db, notifyDataChanged, selectedProfile, sessionId]);
 
   const openMenu = React.useCallback(() => {
     Alert.alert('Session options', session?.name, [
@@ -105,7 +116,7 @@ export default function SessionScreen(): React.ReactElement {
             const previous = exercises;
             setExercises((current) => current.filter((item) => item.id !== exercise.id));
             void exerciseRepository
-              .remove(db, exercise.id, sessionId)
+              .remove(db, selectedProfile!.id, exercise.id, sessionId)
               .then(() => {
                 warningFeedback();
                 notifyDataChanged();
@@ -128,7 +139,7 @@ export default function SessionScreen(): React.ReactElement {
       return;
     }
     try {
-      await exerciseRepository.rename(db, exercise.id, sessionId, editingName);
+      await exerciseRepository.rename(db, selectedProfile!.id, exercise.id, sessionId, editingName);
       setEditingId(null);
       setRenameError(null);
       notifyDataChanged();
@@ -260,7 +271,7 @@ export default function SessionScreen(): React.ReactElement {
           const previous = exercises;
           setExercises(data);
           void exerciseRepository
-            .reorder(db, sessionId, data.map((item) => item.id))
+            .reorder(db, selectedProfile!.id, sessionId, data.map((item) => item.id))
             .then(() => {
               selectionFeedback();
               notifyDataChanged();

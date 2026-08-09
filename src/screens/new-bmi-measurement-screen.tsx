@@ -5,9 +5,10 @@ import { ActivityIndicator, Alert, View } from 'react-native';
 
 import { bmiRepository } from '@/data/bmi-repository';
 import { useDataChange } from '@/data/data-change-context';
+import { useProfiles } from '@/data/profile-context';
 import { BmiMeasurementForm } from '@/features/bmi/bmi-measurement-form';
 import { useAppTheme } from '@/theme/use-app-theme';
-import type { BmiMeasurementInput } from '@/types/bmi';
+import type { BmiMeasurementDraft } from '@/types/bmi';
 import { successFeedback } from '@/utils/feedback';
 import { track } from '@/utils/telemetry';
 
@@ -15,28 +16,30 @@ export default function NewBmiMeasurementScreen(): React.ReactElement {
   const db = useSQLiteContext();
   const theme = useAppTheme();
   const { notifyDataChanged } = useDataChange();
+  const { selectedProfile, loading: profilesLoading } = useProfiles();
   const [loading, setLoading] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
-  const [initialValue, setInitialValue] = React.useState<BmiMeasurementInput | undefined>();
+  const [initialValue, setInitialValue] = React.useState<BmiMeasurementDraft | undefined>();
 
   React.useEffect(() => {
-    void bmiRepository.getLatest(db).then((latest) => {
+    if (profilesLoading) return;
+    if (!selectedProfile) {
+      router.replace('/profiles/new');
+      return;
+    }
+    void bmiRepository.getLatest(db, selectedProfile.id).then((latest) => {
       if (latest) {
         setInitialValue({
           measuredAt: new Date(),
           inputWeight: latest.inputWeight,
           inputWeightUnit: latest.inputWeightUnit,
-          inputHeightUnit: latest.inputHeightUnit,
-          heightCm: latest.heightCm,
-          ageYears: latest.ageYears,
-          gender: latest.gender,
         });
       }
     }).catch((error) => {
       track('database_error', { operation: 'bmi_latest', message: String(error) });
       Alert.alert('Previous values could not be loaded', 'You can still enter a new measurement.');
     }).finally(() => setLoading(false));
-  }, [db]);
+  }, [db, profilesLoading, selectedProfile]);
 
   if (loading) {
     return (
@@ -46,10 +49,11 @@ export default function NewBmiMeasurementScreen(): React.ReactElement {
     );
   }
 
-  const save = async (input: BmiMeasurementInput) => {
+  const save = async (input: BmiMeasurementDraft) => {
     setSubmitting(true);
     try {
-      const created = await bmiRepository.create(db, input);
+      if (!selectedProfile) throw new Error('Choose a profile first.');
+      const created = await bmiRepository.create(db, selectedProfile, input);
       notifyDataChanged();
       track('bmi_measurement_created', { measurementId: created.id });
       successFeedback();
@@ -64,6 +68,7 @@ export default function NewBmiMeasurementScreen(): React.ReactElement {
 
   return (
     <BmiMeasurementForm
+      profile={selectedProfile!}
       initialValue={initialValue}
       submitLabel="Add Measurement"
       submitting={submitting}

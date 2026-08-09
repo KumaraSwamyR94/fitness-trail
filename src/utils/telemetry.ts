@@ -11,6 +11,9 @@ export type TelemetryEvent =
   | 'bmi_measurement_created'
   | 'bmi_measurement_updated'
   | 'bmi_measurement_deleted'
+  | 'profile_created'
+  | 'profile_updated'
+  | 'profile_deleted'
   | 'database_error';
 
 export function track(event: TelemetryEvent, properties: Record<string, unknown> = {}): void {

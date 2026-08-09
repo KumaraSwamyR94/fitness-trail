@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { MIGRATION_V2, MIGRATION_V3, MIGRATION_V4, SCHEMA_V1 } from '@/data/migrations';
+import { MIGRATION_V2, MIGRATION_V3, MIGRATION_V4, MIGRATION_V5, SCHEMA_V1 } from '@/data/migrations';
 
 function sqlite(database: string, sql: string): string {
   return execFileSync('/usr/bin/sqlite3', [database], {
@@ -254,5 +254,94 @@ describe('SQLite migration and relational integrity', () => {
     `);
     expect(result).toBe('31|93|465');
     expect(performance.now() - startedAt).toBeLessThan(3000);
+  });
+});
+
+describe('profile migration and ownership integrity', () => {
+  let database: string;
+
+  beforeEach(() => {
+    database = path.join(mkdtempSync(path.join(tmpdir(), 'fitness-trail-profiles-db-')), 'journal.db');
+    sqlite(database, `${SCHEMA_V1}\n${MIGRATION_V2}\n${MIGRATION_V3}\n${MIGRATION_V4}`);
+    sqlite(database, `
+      INSERT INTO sessions
+        (id, name, scheduled_at, local_date, timezone_offset_minutes, created_at, updated_at)
+      VALUES ('legacy-session', 'Legacy Session', 1, '2026-08-03', -330, 1, 1);
+      INSERT INTO bmi_measurements
+        (id, measured_at, local_date, timezone_offset_minutes, input_weight, input_weight_unit,
+         weight_kg, weight_lb, input_height_unit, height_cm, age_years, gender, created_at, updated_at)
+      VALUES ('legacy-bmi', 2, '2026-08-03', -330, 70, 'kg', 70, 154.3234, 'cm', 175, 30, 'woman', 1, 1);
+    `);
+    sqlite(database, MIGRATION_V5);
+  });
+
+  test('upgrades version 4 without assigning legacy records prematurely', () => {
+    expect(sqlite(database, 'PRAGMA user_version;')).toBe('5');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM profiles;')).toBe('0');
+    expect(sqlite(database, "SELECT COALESCE(profile_id, 'unassigned') FROM sessions WHERE id = 'legacy-session';")).toBe('unassigned');
+    expect(sqlite(database, "SELECT COALESCE(profile_id, 'unassigned') FROM bmi_measurements WHERE id = 'legacy-bmi';")).toBe('unassigned');
+    const indexes = sqlite(database, "SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name;");
+    expect(indexes).toContain('sessions_profile_local_date_idx');
+    expect(indexes).toContain('bmi_measurements_profile_measured_at_idx');
+  });
+
+  test('supports first-profile legacy adoption, persistent selection, and isolated queries', () => {
+    sqlite(database, `
+      INSERT INTO profiles
+        (id, name, age_source, age_years, date_of_birth, gender, input_height_unit,
+         height_cm, photo_kind, photo_ref, created_at, updated_at)
+      VALUES
+        ('p1', 'Alex', 'age', 30, NULL, 'non_binary', 'cm', 175, 'none', NULL, 1, 1),
+        ('p2', 'Sam', 'dob', NULL, '1990-01-01', 'prefer_not_to_say', 'ft-in', 180, 'avatar', 'trail-01', 2, 2);
+      UPDATE sessions SET profile_id = 'p1' WHERE profile_id IS NULL;
+      UPDATE bmi_measurements SET profile_id = 'p1' WHERE profile_id IS NULL;
+      UPDATE profile_state SET selected_profile_id = 'p1' WHERE singleton = 1;
+      INSERT INTO sessions
+        (id, profile_id, name, scheduled_at, local_date, timezone_offset_minutes, created_at, updated_at)
+      VALUES ('p2-session', 'p2', 'Other Session', 3, '2026-08-03', -330, 3, 3);
+    `);
+    expect(sqlite(database, "SELECT selected_profile_id FROM profile_state WHERE singleton = 1;")).toBe('p1');
+    expect(sqlite(database, "SELECT id FROM sessions WHERE profile_id = 'p1';")).toBe('legacy-session');
+    expect(sqlite(database, "SELECT id FROM sessions WHERE profile_id = 'p2';")).toBe('p2-session');
+    expect(sqlite(database, "SELECT profile_id FROM bmi_measurements WHERE id = 'legacy-bmi';")).toBe('p1');
+  });
+
+  test('cascades profile history while preserving the shared exercise catalog', () => {
+    sqlite(database, `
+      INSERT INTO profiles
+        (id, name, age_source, age_years, date_of_birth, gender, input_height_unit,
+         height_cm, photo_kind, photo_ref, created_at, updated_at)
+      VALUES ('p1', 'Alex', 'age', 30, NULL, 'woman', 'cm', 175, 'none', NULL, 1, 1);
+      UPDATE sessions SET profile_id = 'p1';
+      UPDATE bmi_measurements SET profile_id = 'p1';
+      INSERT INTO exercise_catalog
+        (id, normalized_name, display_name, use_count, last_used_at, created_at, updated_at, exercise_type)
+      VALUES ('catalog-1', 'squat', 'Squat', 1, 1, 1, 1, 'free_weight');
+      INSERT INTO session_exercises
+        (id, session_id, catalog_id, display_name, normalized_name, exercise_type, position, created_at, updated_at)
+      VALUES ('exercise-1', 'legacy-session', 'catalog-1', 'Squat', 'squat', 'free_weight', 0, 1, 1);
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, reps, input_weight, input_unit,
+         weight_kg, weight_lb, tut_seconds, created_at, updated_at)
+      VALUES ('set-1', 'exercise-1', 0, 'strength', 5, 100, 'kg', 100, 220.462, 20, 1, 1);
+      DELETE FROM profiles WHERE id = 'p1';
+    `);
+    expect(sqlite(database, 'SELECT COUNT(*) FROM sessions;')).toBe('0');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM session_exercises;')).toBe('0');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM workout_sets;')).toBe('0');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM bmi_measurements;')).toBe('0');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM exercise_catalog;')).toBe('1');
+  });
+
+  test('enforces complete age/photo shapes and foreign keys', () => {
+    expect(() => sqlite(database, `
+      INSERT INTO profiles
+        (id, name, age_source, age_years, date_of_birth, gender, input_height_unit,
+         height_cm, photo_kind, photo_ref, created_at, updated_at)
+      VALUES ('bad', 'Bad', 'age', NULL, '2000-01-01', 'woman', 'cm', 175, 'none', 'unexpected', 1, 1);
+    `)).toThrow();
+    expect(() => sqlite(database, `
+      UPDATE sessions SET profile_id = 'missing' WHERE id = 'legacy-session';
+    `)).toThrow();
   });
 });
