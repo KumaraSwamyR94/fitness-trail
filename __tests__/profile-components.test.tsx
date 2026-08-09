@@ -36,6 +36,20 @@ async function renderProfileForm(onSubmit = jest.fn(async () => undefined)) {
 }
 
 describe('profile form', () => {
+  test('reveals exactly three picture sources from the avatar pencil', async () => {
+    const { getByTestId, getByLabelText, queryByLabelText } = await renderProfileForm();
+    expect(queryByLabelText('Camera')).toBeNull();
+    expect(queryByLabelText('Photo Library')).toBeNull();
+    expect(queryByLabelText('Avatars')).toBeNull();
+
+    await fireEvent.press(getByTestId('profile-photo-edit'));
+
+    expect(getByLabelText('Camera')).toBeTruthy();
+    expect(getByLabelText('Photo Library')).toBeTruthy();
+    expect(getByLabelText('Avatars')).toBeTruthy();
+    expect(queryByLabelText('Remove')).toBeNull();
+  });
+
   test('validates required adult profile fields', async () => {
     const { getByTestId, findByText, onSubmit } = await renderProfileForm();
     await fireEvent.press(getByTestId('save-profile'));

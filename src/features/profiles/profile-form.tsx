@@ -48,15 +48,12 @@ function SourceAction({
   icon,
   label,
   onPress,
-  danger = false,
 }: {
   icon: AppIconProps['name'];
   label: string;
   onPress: () => void;
-  danger?: boolean;
 }): React.ReactElement {
   const theme = useAppTheme();
-  const color = danger ? theme.colors.danger : theme.colors.text;
   return (
     <Pressable
       accessibilityRole="button"
@@ -69,8 +66,8 @@ function SourceAction({
         borderRadius: 16,
         borderCurve: 'continuous',
         borderWidth: 1,
-        borderColor: danger ? theme.colors.danger : theme.colors.border,
-        backgroundColor: danger ? theme.colors.dangerSoft : pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+        borderColor: theme.colors.border,
+        backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
         gap: 6,
@@ -78,8 +75,8 @@ function SourceAction({
         opacity: pressed ? 0.75 : 1,
       })}
     >
-      <AppIcon name={icon} color={color} size={22} />
-      <Text selectable style={{ color, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
+      <AppIcon name={icon} color={theme.colors.text} size={22} />
+      <Text selectable style={{ color: theme.colors.text, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
     </Pressable>
   );
 }
@@ -242,6 +239,7 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
   const [heightFeet, setHeightFeet] = React.useState(initialValue ? String(imperial.feet) : '');
   const [heightInches, setHeightInches] = React.useState(initialValue ? editableNumber(imperial.inches) : '');
   const [photo, setPhoto] = React.useState<ProfilePhoto>(initialValue?.photo ?? { kind: 'none', ref: null });
+  const [showPhotoOptions, setShowPhotoOptions] = React.useState(false);
   const [showAvatars, setShowAvatars] = React.useState(false);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [errors, setErrors] = React.useState<ProfileValidationErrors>({});
@@ -283,7 +281,10 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
       const result = source === 'camera'
         ? await imagePicker.launchCameraAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 })
         : await imagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-      if (!result.canceled && result.assets[0]) await replacePhoto(await persistProfilePhoto(result.assets[0].uri));
+      if (!result.canceled && result.assets[0]) {
+        await replacePhoto(await persistProfilePhoto(result.assets[0].uri));
+        setShowPhotoOptions(false);
+      }
     } catch (error) {
       Alert.alert('Picture could not be saved', error instanceof Error ? error.message : 'Please try again.');
     } finally {
@@ -332,24 +333,66 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
       footer={<AppButton label={submitLabel} loading={submitting} onPress={() => void save()} testID="save-profile" />}
     >
       <View style={{ alignItems: 'center', gap: 12 }}>
-        <View style={{ opacity: photoBusy ? 0.55 : 1 }}><ProfileAvatar name={name || 'Profile'} photo={photo} size={104} /></View>
+        <View style={{ position: 'relative', opacity: photoBusy ? 0.55 : 1 }}>
+          <ProfileAvatar name={name || 'Profile'} photo={photo} size={104} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Update profile picture"
+            accessibilityState={{ expanded: showPhotoOptions, disabled: photoBusy }}
+            disabled={photoBusy}
+            onPress={() => {
+              setShowPhotoOptions((value) => !value);
+              setShowAvatars(false);
+            }}
+            testID="profile-photo-edit"
+            hitSlop={8}
+            style={({ pressed }) => ({
+              position: 'absolute',
+              right: -5,
+              bottom: -5,
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              borderWidth: 3,
+              borderColor: theme.colors.background,
+              backgroundColor: theme.colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.78 : 1,
+              boxShadow: '0 3px 9px rgba(15, 23, 42, 0.2)',
+            })}
+          >
+            <AppIcon name="pencil" color="#FFFFFF" size={18} />
+          </Pressable>
+        </View>
         {photoBusy ? <ActivityIndicator color={theme.colors.accent} /> : null}
         <Text selectable style={{ color: theme.colors.textMuted, textAlign: 'center', lineHeight: 20 }}>
-          Add a picture or keep the initials placeholder.
+          Tap the pencil to choose a photo or avatar.
         </Text>
       </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
-        <SourceAction icon="camera" label="Camera" onPress={() => void pickPhoto('camera')} />
-        <SourceAction icon="image-outline" label="Photo Library" onPress={() => void pickPhoto('library')} />
-        <SourceAction icon="account-multiple-outline" label="Avatars" onPress={() => setShowAvatars((value) => !value)} />
-        {photo.kind !== 'none' ? <SourceAction icon="close" label="Remove" danger onPress={() => void replacePhoto({ kind: 'none', ref: null })} /> : null}
-      </View>
+      {showPhotoOptions ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
+          <SourceAction icon="camera" label="Camera" onPress={() => void pickPhoto('camera')} />
+          <SourceAction icon="image-outline" label="Photo Library" onPress={() => void pickPhoto('library')} />
+          <SourceAction
+            icon="account-multiple-outline"
+            label="Avatars"
+            onPress={() => {
+              setShowPhotoOptions(false);
+              setShowAvatars(true);
+            }}
+          />
+        </View>
+      ) : null}
 
       {showAvatars ? (
         <AvatarGallery
           selected={photo.kind === 'avatar' ? photo.ref : null}
-          onSelect={(id) => void replacePhoto({ kind: 'avatar', ref: id })}
+          onSelect={(id) => {
+            void replacePhoto({ kind: 'avatar', ref: id });
+            setShowAvatars(false);
+          }}
         />
       ) : null}
 
