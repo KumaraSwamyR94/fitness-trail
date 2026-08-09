@@ -63,11 +63,18 @@ export function AppButton({
         <View style={{ width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {icon ? <AppIcon {...icon} color={foreground} /> : null}
           <Text
-            selectable
             numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.72}
-            style={{ minWidth: 0, flexShrink: 1, color: foreground, fontSize: 16, fontWeight: '700', textAlign: 'center' }}
+            ellipsizeMode="tail"
+            maxFontSizeMultiplier={1.3}
+            style={{
+              minWidth: 0,
+              flexShrink: 1,
+              color: foreground,
+              fontSize: 16,
+              lineHeight: 22,
+              fontWeight: '700',
+              textAlign: 'center',
+            }}
           >
             {label}
           </Text>
