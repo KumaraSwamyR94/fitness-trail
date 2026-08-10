@@ -14,7 +14,13 @@ import { sessionRepository } from '@/data/session-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
 import type { SessionSummary } from '@/types/workout';
-import { addMonths, fromLocalDateKey, monthRange, startOfMonth, toLocalDateKey } from '@/utils/dates';
+import {
+  addMonths,
+  fromLocalDateKey,
+  monthRange,
+  startOfMonth,
+  toLocalDateKey,
+} from '@/utils/dates';
 
 export default function DashboardScreen(): React.ReactElement {
   const db = useSQLiteContext();
@@ -38,7 +44,9 @@ export default function DashboardScreen(): React.ReactElement {
     }
     const range = monthRange(month);
     try {
-      setSessions(await sessionRepository.listBetween(db, selectedProfile.id, range.start, range.end));
+      setSessions(
+        await sessionRepository.listBetween(db, selectedProfile.id, range.start, range.end),
+      );
     } finally {
       setLoading(false);
     }
@@ -59,7 +67,10 @@ export default function DashboardScreen(): React.ReactElement {
     });
   }, []);
 
-  const marked = React.useMemo(() => new Set(sessions.map((session) => session.localDate)), [sessions]);
+  const marked = React.useMemo(
+    () => new Set(sessions.map((session) => session.localDate)),
+    [sessions],
+  );
   const selectedSessions = sessions.filter((session) => session.localDate === selectedKey);
   const selectedLabel = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' }).format(
     fromLocalDateKey(selectedKey),
@@ -81,7 +92,15 @@ export default function DashboardScreen(): React.ReactElement {
         refreshControl={undefined}
       >
         <View style={{ gap: 4 }}>
-          <Text selectable style={{ color: theme.colors.accent, fontSize: 13, fontWeight: '800', letterSpacing: 0.7 }}>
+          <Text
+            selectable
+            style={{
+              color: theme.colors.accent,
+              fontSize: 13,
+              fontWeight: '800',
+              letterSpacing: 0.7,
+            }}
+          >
             STRENGTH TRAINING JOURNAL & TRACKER
           </Text>
           <Text selectable style={{ color: theme.colors.textMuted, fontSize: 16, lineHeight: 22 }}>
@@ -92,71 +111,107 @@ export default function DashboardScreen(): React.ReactElement {
         {selectedProfile ? (
           <SelectedProfileCard profile={selectedProfile} />
         ) : !profilesLoading ? (
-          <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, borderCurve: 'continuous' }}>
-            <EmptyState title="Choose a profile first" message="Create a profile to keep this workout trail separate and start logging sessions." icon={{ name: 'account-plus-outline' }} />
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderRadius: 20,
+              borderCurve: 'continuous',
+            }}
+          >
+            <EmptyState
+              title="Choose a profile first"
+              message="Create a profile to keep this workout trail separate and start logging sessions."
+              icon={{ name: 'account-plus-outline' }}
+            />
           </View>
         ) : null}
 
-        {selectedProfile ? <>
-        <MonthCalendar
-          month={month}
-          selectedKey={selectedKey}
-          markedKeys={marked}
-          onSelect={(key) => {
-            setSelectedKey(key);
-            const selected = fromLocalDateKey(key);
-            if (selected.getMonth() !== month.getMonth()) setMonth(startOfMonth(selected));
-          }}
-          onPrevious={() => changeMonth(-1)}
-          onNext={() => changeMonth(1)}
-        />
+        {selectedProfile ? (
+          <>
+            <MonthCalendar
+              month={month}
+              selectedKey={selectedKey}
+              markedKeys={marked}
+              onSelect={(key) => {
+                setSelectedKey(key);
+                const selected = fromLocalDateKey(key);
+                if (selected.getMonth() !== month.getMonth()) setMonth(startOfMonth(selected));
+              }}
+              onPrevious={() => changeMonth(-1)}
+              onNext={() => changeMonth(1)}
+            />
 
-        <View style={{ gap: 10 }}>
-          <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>
-            {selectedLabel}
-          </Text>
-          {loading ? (
-            <ActivityIndicator color={theme.colors.accent} style={{ padding: 30 }} />
-          ) : selectedSessions.length === 0 ? (
-            <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, borderCurve: 'continuous' }}>
-              <EmptyState title="A rest day—or a fresh start" message="No sessions are logged for this date. Start one whenever you are ready." />
-            </View>
-          ) : (
-            selectedSessions.map((session) => (
-              <Animated.View
-                key={session.id}
-                entering={reduceMotion ? undefined : FadeIn.duration(180)}
-                layout={reduceMotion ? undefined : LinearTransition.duration(180)}
+            <View style={{ gap: 10 }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}
               >
-                <Link href={{ pathname: '/sessions/[sessionId]', params: { sessionId: session.id } }} asChild>
-                  <Pressable
-                    accessibilityLabel={`${session.name}, ${session.exerciseCount} exercises, ${session.setCount} sets`}
-                    style={({ pressed }) => ({
-                      backgroundColor: theme.colors.surface,
-                      borderRadius: 18,
-                      borderCurve: 'continuous',
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      padding: 16,
-                      gap: 5,
-                      opacity: pressed ? 0.76 : 1,
-                    })}
+                {selectedLabel}
+              </Text>
+              {loading ? (
+                <ActivityIndicator color={theme.colors.accent} style={{ padding: 30 }} />
+              ) : selectedSessions.length === 0 ? (
+                <View
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderRadius: 20,
+                    borderCurve: 'continuous',
+                  }}
+                >
+                  <EmptyState
+                    title="A rest day—or a fresh start"
+                    message="No sessions are logged for this date. Start one whenever you are ready."
+                  />
+                </View>
+              ) : (
+                selectedSessions.map((session) => (
+                  <Animated.View
+                    key={session.id}
+                    entering={reduceMotion ? undefined : FadeIn.duration(180)}
+                    layout={reduceMotion ? undefined : LinearTransition.duration(180)}
                   >
-                    <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800' }}>
-                      {session.name}
-                    </Text>
-                    <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14 }}>
-                      {new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(session.scheduledAt)} ·{' '}
-                      {session.exerciseCount} {session.exerciseCount === 1 ? 'exercise' : 'exercises'} · {session.setCount}{' '}
-                      {session.setCount === 1 ? 'set' : 'sets'}
-                    </Text>
-                  </Pressable>
-                </Link>
-              </Animated.View>
-            ))
-          )}
-        </View>
-        </> : null}
+                    <Link
+                      href={{
+                        pathname: '/sessions/[sessionId]',
+                        params: { sessionId: session.id },
+                      }}
+                      asChild
+                    >
+                      <Pressable
+                        accessibilityLabel={`${session.name}, ${session.exerciseCount} exercises, ${session.setCount} sets`}
+                        style={({ pressed }) => ({
+                          backgroundColor: theme.colors.surface,
+                          borderRadius: 18,
+                          borderCurve: 'continuous',
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                          padding: 16,
+                          gap: 5,
+                          opacity: pressed ? 0.76 : 1,
+                        })}
+                      >
+                        <Text
+                          selectable
+                          style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800' }}
+                        >
+                          {session.name}
+                        </Text>
+                        <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+                          {new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(
+                            session.scheduledAt,
+                          )}{' '}
+                          · {session.exerciseCount}{' '}
+                          {session.exerciseCount === 1 ? 'exercise' : 'exercises'} ·{' '}
+                          {session.setCount} {session.setCount === 1 ? 'set' : 'sets'}
+                        </Text>
+                      </Pressable>
+                    </Link>
+                  </Animated.View>
+                ))
+              )}
+            </View>
+          </>
+        ) : null}
 
         <AppButton
           label={selectedProfile ? 'Start New Session' : 'Create Profile'}

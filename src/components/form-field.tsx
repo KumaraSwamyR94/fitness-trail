@@ -39,7 +39,11 @@ export function FormField({ label, error, style, ...props }: FormFieldProps): Re
         {...props}
       />
       {error ? (
-        <Text selectable accessibilityLiveRegion="polite" style={{ color: theme.colors.danger, fontSize: 13 }}>
+        <Text
+          selectable
+          accessibilityLiveRegion="polite"
+          style={{ color: theme.colors.danger, fontSize: 13 }}
+        >
           {error}
         </Text>
       ) : null}

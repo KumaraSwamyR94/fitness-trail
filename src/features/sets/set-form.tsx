@@ -79,9 +79,10 @@ export function SetForm({
   }, [initialValue]);
 
   const parsedWeight = weight.trim() === '' ? null : Number(weight);
-  const conversion = parsedWeight !== null && Number.isFinite(parsedWeight) && parsedWeight >= 0
-    ? convertWeight(parsedWeight, unit)
-    : null;
+  const conversion =
+    parsedWeight !== null && Number.isFinite(parsedWeight) && parsedWeight >= 0
+      ? convertWeight(parsedWeight, unit)
+      : null;
 
   const save = async () => {
     let input: SetInput;
@@ -89,13 +90,17 @@ export function SetForm({
     if (exerciseType === 'cardio' && kind === 'duration') {
       const parsedMinutes = parseWholeNumber(minutes);
       const parsedSeconds = parseWholeNumber(seconds);
-      if (!Number.isInteger(parsedMinutes) || parsedMinutes < 0) nextErrors.duration = 'Enter whole minutes of 0 or more.';
-      else if (!Number.isInteger(parsedSeconds) || parsedSeconds < 0 || parsedSeconds > 59) nextErrors.duration = 'Enter seconds from 0 to 59.';
+      if (!Number.isInteger(parsedMinutes) || parsedMinutes < 0)
+        nextErrors.duration = 'Enter whole minutes of 0 or more.';
+      else if (!Number.isInteger(parsedSeconds) || parsedSeconds < 0 || parsedSeconds > 59)
+        nextErrors.duration = 'Enter seconds from 0 to 59.';
       input = { kind: 'duration', durationSeconds: parsedMinutes * 60 + parsedSeconds };
-      if (!nextErrors.duration && input.durationSeconds < 1) nextErrors.duration = 'Duration must be at least one second.';
+      if (!nextErrors.duration && input.durationSeconds < 1)
+        nextErrors.duration = 'Duration must be at least one second.';
     } else if (exerciseType === 'cardio') {
       input = { kind: 'calories', calories: parseWholeNumber(calories) };
-      if (!Number.isInteger(input.calories) || input.calories < 1) nextErrors.calories = 'Enter whole calories of 1 or more.';
+      if (!Number.isInteger(input.calories) || input.calories < 1)
+        nextErrors.calories = 'Enter whole calories of 1 or more.';
     } else {
       input = {
         kind: 'strength',
@@ -104,10 +109,17 @@ export function SetForm({
         inputUnit: unit,
         tutSeconds: parseWholeNumber(tut),
       };
-      if (!Number.isInteger(input.reps) || input.reps < 1) nextErrors.reps = 'Enter a whole number of 1 or more.';
-      if (exerciseType !== 'body_weight' && input.inputWeight === null) nextErrors.weight = 'Enter a weight of 0 or more.';
-      else if (input.inputWeight !== null && (!Number.isFinite(input.inputWeight) || input.inputWeight < 0)) nextErrors.weight = 'Enter a weight of 0 or more.';
-      if (!Number.isInteger(input.tutSeconds) || input.tutSeconds < 0) nextErrors.tut = 'Enter whole seconds of 0 or more.';
+      if (!Number.isInteger(input.reps) || input.reps < 1)
+        nextErrors.reps = 'Enter a whole number of 1 or more.';
+      if (exerciseType !== 'body_weight' && input.inputWeight === null)
+        nextErrors.weight = 'Enter a weight of 0 or more.';
+      else if (
+        input.inputWeight !== null &&
+        (!Number.isFinite(input.inputWeight) || input.inputWeight < 0)
+      )
+        nextErrors.weight = 'Enter a weight of 0 or more.';
+      if (!Number.isInteger(input.tutSeconds) || input.tutSeconds < 0)
+        nextErrors.tut = 'Enter whole seconds of 0 or more.';
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length || validateSetInput(input, exerciseType)) return;
@@ -116,9 +128,20 @@ export function SetForm({
 
   const strengthFields = (
     <>
-      <FormField label="Repetitions" value={reps} onChangeText={setReps} keyboardType="number-pad" inputMode="numeric" returnKeyType="next" error={errors.reps} testID="set-reps" />
+      <FormField
+        label="Repetitions"
+        value={reps}
+        onChangeText={setReps}
+        keyboardType="number-pad"
+        inputMode="numeric"
+        returnKeyType="next"
+        error={errors.reps}
+        testID="set-reps"
+      />
       <View style={{ gap: 9 }}>
-        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>Weight unit</Text>
+        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
+          Weight unit
+        </Text>
         <SegmentedControl
           accessibilityLabel="Weight unit"
           values={['Kilograms', 'Pounds']}
@@ -126,7 +149,11 @@ export function SetForm({
           onChange={(event) => setUnit(event.nativeEvent.selectedSegmentIndex === 0 ? 'kg' : 'lb')}
           tintColor={theme.colors.accentSoft}
           fontStyle={{ color: theme.colors.text, fontSize: compact ? 13 : 14 }}
-          activeFontStyle={{ color: theme.colors.text, fontSize: compact ? 13 : 14, fontWeight: '700' }}
+          activeFontStyle={{
+            color: theme.colors.text,
+            fontSize: compact ? 13 : 14,
+            fontWeight: '700',
+          }}
           style={{ height: 44 }}
         />
       </View>
@@ -142,42 +169,159 @@ export function SetForm({
         testID="set-weight"
       />
       <View
-        accessibilityLabel={conversion ? `${formatWeight(conversion.weightKg)} kilograms, ${formatWeight(conversion.weightLb)} pounds` : 'No added weight entered'}
-        style={{ flexDirection: 'row', borderRadius: 16, borderCurve: 'continuous', backgroundColor: theme.colors.surfaceMuted, padding: compact ? 12 : 14, gap: compact ? 8 : 12 }}
+        accessibilityLabel={
+          conversion
+            ? `${formatWeight(conversion.weightKg)} kilograms, ${formatWeight(conversion.weightLb)} pounds`
+            : 'No added weight entered'
+        }
+        style={{
+          flexDirection: 'row',
+          borderRadius: 16,
+          borderCurve: 'continuous',
+          backgroundColor: theme.colors.surfaceMuted,
+          padding: compact ? 12 : 14,
+          gap: compact ? 8 : 12,
+        }}
       >
-        <View style={{ flex: 1, gap: 3 }}><Text numberOfLines={1} style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' }}>KILOGRAMS</Text><Text style={{ color: theme.colors.text, fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{conversion ? formatWeight(conversion.weightKg) : '—'}</Text></View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text
+            numberOfLines={1}
+            style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' }}
+          >
+            KILOGRAMS
+          </Text>
+          <Text
+            style={{
+              color: theme.colors.text,
+              fontSize: 19,
+              fontWeight: '800',
+              fontVariant: ['tabular-nums'],
+            }}
+          >
+            {conversion ? formatWeight(conversion.weightKg) : '—'}
+          </Text>
+        </View>
         <View style={{ width: 1, backgroundColor: theme.colors.border }} />
-        <View style={{ flex: 1, gap: 3 }}><Text numberOfLines={1} style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' }}>POUNDS</Text><Text style={{ color: theme.colors.text, fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{conversion ? formatWeight(conversion.weightLb) : '—'}</Text></View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text
+            numberOfLines={1}
+            style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' }}
+          >
+            POUNDS
+          </Text>
+          <Text
+            style={{
+              color: theme.colors.text,
+              fontSize: 19,
+              fontWeight: '800',
+              fontVariant: ['tabular-nums'],
+            }}
+          >
+            {conversion ? formatWeight(conversion.weightLb) : '—'}
+          </Text>
+        </View>
       </View>
-      <FormField label="Time under tension (seconds)" value={tut} onChangeText={setTut} keyboardType="number-pad" inputMode="numeric" returnKeyType="done" onSubmitEditing={() => void save()} error={errors.tut} testID="set-tut" />
+      <FormField
+        label="Time under tension (seconds)"
+        value={tut}
+        onChangeText={setTut}
+        keyboardType="number-pad"
+        inputMode="numeric"
+        returnKeyType="done"
+        onSubmitEditing={() => void save()}
+        error={errors.tut}
+        testID="set-tut"
+      />
     </>
   );
 
   const cardioFields = (
     <>
       <View style={{ gap: 9 }}>
-        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>Cardio metric</Text>
-        <SegmentedControl accessibilityLabel="Cardio metric" values={['Duration', 'Calories']} selectedIndex={kind === 'duration' ? 0 : 1} onChange={(event) => { setKind(event.nativeEvent.selectedSegmentIndex === 0 ? 'duration' : 'calories'); setErrors({}); }} tintColor={theme.colors.accentSoft} style={{ height: 44 }} />
+        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
+          Cardio metric
+        </Text>
+        <SegmentedControl
+          accessibilityLabel="Cardio metric"
+          values={['Duration', 'Calories']}
+          selectedIndex={kind === 'duration' ? 0 : 1}
+          onChange={(event) => {
+            setKind(event.nativeEvent.selectedSegmentIndex === 0 ? 'duration' : 'calories');
+            setErrors({});
+          }}
+          tintColor={theme.colors.accentSoft}
+          style={{ height: 44 }}
+        />
       </View>
       {kind === 'duration' ? (
         <View style={{ gap: 7 }}>
-          <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>Duration</Text>
+          <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
+            Duration
+          </Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}><FormField label="Minutes" value={minutes} onChangeText={setMinutes} keyboardType="number-pad" inputMode="numeric" returnKeyType="next" error={errors.duration} testID="set-duration-minutes" /></View>
-            <View style={{ flex: 1 }}><FormField label="Seconds" value={seconds} onChangeText={setSeconds} keyboardType="number-pad" inputMode="numeric" returnKeyType="done" onSubmitEditing={() => void save()} testID="set-duration-seconds" /></View>
+            <View style={{ flex: 1 }}>
+              <FormField
+                label="Minutes"
+                value={minutes}
+                onChangeText={setMinutes}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                returnKeyType="next"
+                error={errors.duration}
+                testID="set-duration-minutes"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FormField
+                label="Seconds"
+                value={seconds}
+                onChangeText={setSeconds}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                returnKeyType="done"
+                onSubmitEditing={() => void save()}
+                testID="set-duration-seconds"
+              />
+            </View>
           </View>
         </View>
       ) : (
-        <FormField label="Calories (kcal)" value={calories} onChangeText={setCalories} keyboardType="number-pad" inputMode="numeric" returnKeyType="done" onSubmitEditing={() => void save()} error={errors.calories} testID="set-calories" />
+        <FormField
+          label="Calories (kcal)"
+          value={calories}
+          onChangeText={setCalories}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          returnKeyType="done"
+          onSubmitEditing={() => void save()}
+          error={errors.calories}
+          testID="set-calories"
+        />
       )}
     </>
   );
 
   return (
-    <SheetScaffold testID="set-form" footer={<AppButton label={submitLabel} loading={submitting} onPress={() => void save()} testID="save-set" />}>
+    <SheetScaffold
+      testID="set-form"
+      footer={
+        <AppButton
+          label={submitLabel}
+          loading={submitting}
+          onPress={() => void save()}
+          testID="save-set"
+        />
+      }
+    >
       <View style={{ gap: 5 }}>
-        <Text selectable style={{ color: theme.colors.text, fontSize: 24, fontWeight: '800' }}>{exerciseType === 'cardio' ? 'Log your cardio set' : 'Log your working set'}</Text>
-        <Text selectable style={{ color: theme.colors.textMuted, fontSize: 15, lineHeight: 21 }}>{exerciseType === 'cardio' ? 'Record either elapsed duration or calories burned.' : 'Record repetitions, load, and optional time under tension.'}</Text>
+        <Text selectable style={{ color: theme.colors.text, fontSize: 24, fontWeight: '800' }}>
+          {exerciseType === 'cardio' ? 'Log your cardio set' : 'Log your working set'}
+        </Text>
+        <Text selectable style={{ color: theme.colors.textMuted, fontSize: 15, lineHeight: 21 }}>
+          {exerciseType === 'cardio'
+            ? 'Record either elapsed duration or calories burned.'
+            : 'Record repetitions, load, and optional time under tension.'}
+        </Text>
       </View>
       {exerciseType === 'cardio' ? cardioFields : strengthFields}
     </SheetScaffold>

@@ -55,7 +55,9 @@ export function MonthCalendar({
             : '0 8px 24px rgba(37, 55, 80, 0.08)',
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Previous month"
@@ -70,7 +72,14 @@ export function MonthCalendar({
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.72}
-            style={{ flex: 1, minWidth: 0, textAlign: 'center', color: theme.colors.text, fontSize: 18, fontWeight: '800' }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              textAlign: 'center',
+              color: theme.colors.text,
+              fontSize: 18,
+              fontWeight: '800',
+            }}
           >
             {title}
           </Text>
@@ -89,7 +98,12 @@ export function MonthCalendar({
             <View key={`${label}-${index}`} style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
               <Text
                 numberOfLines={1}
-                style={{ textAlign: 'center', color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' }}
+                style={{
+                  textAlign: 'center',
+                  color: theme.colors.textMuted,
+                  fontSize: 12,
+                  fontWeight: '700',
+                }}
               >
                 {label}
               </Text>
@@ -102,7 +116,9 @@ export function MonthCalendar({
               {week.map((day) => {
                 const selected = day.key === selectedKey;
                 const marked = markedKeys.has(day.key);
-                const label = new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(day.date);
+                const label = new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(
+                  day.date,
+                );
                 return (
                   <Pressable
                     key={day.key}
@@ -118,7 +134,11 @@ export function MonthCalendar({
                       justifyContent: 'center',
                       borderRadius: compact ? 12 : 14,
                       borderCurve: 'continuous',
-                      backgroundColor: selected ? theme.colors.accent : pressed ? theme.colors.surfaceMuted : 'transparent',
+                      backgroundColor: selected
+                        ? theme.colors.accent
+                        : pressed
+                          ? theme.colors.surfaceMuted
+                          : 'transparent',
                     })}
                   >
                     <Text

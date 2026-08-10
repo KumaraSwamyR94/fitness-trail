@@ -1,6 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { Image } from 'expo-image';
+import type * as ExpoImagePicker from 'expo-image-picker';
 import React from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
@@ -12,18 +13,19 @@ import { SheetScaffold } from '@/components/sheet-scaffold';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { useResponsiveLayout } from '@/theme/use-responsive-layout';
 import type { Gender, HeightUnit } from '@/types/bmi';
-import type { ProfileAgeSource, ProfileInput, ProfilePhoto, ProfileValidationErrors } from '@/types/profile';
+import type {
+  ProfileAgeSource,
+  ProfileInput,
+  ProfilePhoto,
+  ProfileValidationErrors,
+} from '@/types/profile';
+import { centimetersToFeetInches, feetInchesToCentimeters, GENDER_LABELS } from '@/utils/bmi';
 import {
-  centimetersToFeetInches,
-  feetInchesToCentimeters,
-  GENDER_LABELS,
-} from '@/utils/bmi';
-import {
-  cacheMissingAvatars,
+  type CachedAvatar,
   cachedAvatarSnapshot,
+  cacheMissingAvatars,
   persistProfilePhoto,
   removePrivateProfilePhoto,
-  type CachedAvatar,
 } from '@/utils/profile-media';
 import { fromBirthDateKey, toBirthDateKey, validateProfileInput } from '@/utils/profiles';
 
@@ -76,7 +78,12 @@ function SourceAction({
       })}
     >
       <AppIcon name={icon} color={theme.colors.text} size={22} />
-      <Text selectable style={{ color: theme.colors.text, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
+      <Text
+        selectable
+        style={{ color: theme.colors.text, fontSize: 13, fontWeight: '700', textAlign: 'center' }}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -90,7 +97,9 @@ function AvatarGallery({
 }): React.ReactElement {
   const theme = useAppTheme();
   const [avatars, setAvatars] = React.useState<CachedAvatar[]>(cachedAvatarSnapshot);
-  const [loading, setLoading] = React.useState(() => cachedAvatarSnapshot().some((avatar) => !avatar.uri));
+  const [loading, setLoading] = React.useState(() =>
+    cachedAvatarSnapshot().some((avatar) => !avatar.uri),
+  );
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -101,25 +110,43 @@ function AvatarGallery({
 
   React.useEffect(() => {
     let active = true;
-    void cacheMissingAvatars((value) => { if (active) setAvatars(value); }).then((value) => {
+    void cacheMissingAvatars((value) => {
+      if (active) setAvatars(value);
+    }).then((value) => {
       if (!active) return;
       setAvatars(value);
       setLoading(false);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   const failed = avatars.some((avatar) => avatar.error);
   return (
     <View style={{ gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
+      >
         <View style={{ flex: 1, gap: 2 }}>
-          <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800' }}>Choose an avatar</Text>
-          <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>Downloaded once and kept on this device.</Text>
+          <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800' }}>
+            Choose an avatar
+          </Text>
+          <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
+            Downloaded once and kept on this device.
+          </Text>
         </View>
         {loading ? <ActivityIndicator color={theme.colors.accent} /> : null}
       </View>
-      <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      <View
+        accessibilityRole="radiogroup"
+        style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}
+      >
         {avatars.map((avatar) => {
           const checked = selected === avatar.id;
           return (
@@ -148,14 +175,26 @@ function AvatarGallery({
               })}
             >
               {avatar.uri ? (
-                <Image source={{ uri: avatar.uri }} contentFit="cover" style={{ width: '100%', height: '100%' }} />
+                <Image
+                  source={{ uri: avatar.uri }}
+                  contentFit="cover"
+                  style={{ width: '100%', height: '100%' }}
+                />
               ) : avatar.error ? (
                 <AppIcon name="wifi-off" color={theme.colors.textMuted} size={20} />
               ) : (
                 <ActivityIndicator color={theme.colors.accent} size="small" />
               )}
               {checked ? (
-                <View style={{ position: 'absolute', right: 5, bottom: 5, borderRadius: 99, backgroundColor: theme.colors.accent }}>
+                <View
+                  style={{
+                    position: 'absolute',
+                    right: 5,
+                    bottom: 5,
+                    borderRadius: 99,
+                    backgroundColor: theme.colors.accent,
+                  }}
+                >
                   <AppIcon name="check" color="#FFFFFF" size={16} />
                 </View>
               ) : null}
@@ -164,7 +203,12 @@ function AvatarGallery({
         })}
       </View>
       {failed && !loading ? (
-        <AppButton label="Retry Avatar Download" variant="secondary" icon={{ name: 'refresh' }} onPress={() => void load()} />
+        <AppButton
+          label="Retry Avatar Download"
+          variant="secondary"
+          icon={{ name: 'refresh' }}
+          onPress={() => void load()}
+        />
       ) : null}
     </View>
   );
@@ -197,9 +241,22 @@ function BirthDateField({
   );
   return (
     <View style={{ gap: 7 }}>
-      <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>Date of birth</Text>
+      <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
+        Date of birth
+      </Text>
       {process.env.EXPO_OS === 'ios' ? (
-        <View style={{ minHeight: 50, justifyContent: 'center', borderRadius: 14, borderCurve: 'continuous', borderWidth: 1, borderColor: error ? theme.colors.danger : theme.colors.border, backgroundColor: theme.colors.surface, paddingHorizontal: 12 }}>
+        <View
+          style={{
+            minHeight: 50,
+            justifyContent: 'center',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            borderWidth: 1,
+            borderColor: error ? theme.colors.danger : theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            paddingHorizontal: 12,
+          }}
+        >
           {picker}
         </View>
       ) : (
@@ -207,55 +264,89 @@ function BirthDateField({
           accessibilityRole="button"
           accessibilityLabel="Choose date of birth"
           onPress={() => setOpen(true)}
-          style={{ minHeight: 50, justifyContent: 'center', borderRadius: 14, borderCurve: 'continuous', borderWidth: 1, borderColor: error ? theme.colors.danger : theme.colors.border, backgroundColor: theme.colors.surface, paddingHorizontal: 14 }}
+          style={{
+            minHeight: 50,
+            justifyContent: 'center',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            borderWidth: 1,
+            borderColor: error ? theme.colors.danger : theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            paddingHorizontal: 14,
+          }}
         >
-          <Text selectable style={{ color: theme.colors.text, fontSize: 16 }}>{label}</Text>
+          <Text selectable style={{ color: theme.colors.text, fontSize: 16 }}>
+            {label}
+          </Text>
         </Pressable>
       )}
       {open && process.env.EXPO_OS !== 'ios' ? picker : null}
-      {error ? <Text selectable style={{ color: theme.colors.danger, fontSize: 13 }}>{error}</Text> : null}
+      {error ? (
+        <Text selectable style={{ color: theme.colors.danger, fontSize: 13 }}>
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
-export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }: ProfileFormProps): React.ReactElement {
+export function ProfileForm({
+  initialValue,
+  submitLabel,
+  submitting,
+  onSubmit,
+}: ProfileFormProps): React.ReactElement {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
   const [name, setName] = React.useState(initialValue?.name ?? '');
-  const [ageSource, setAgeSource] = React.useState<ProfileAgeSource>(initialValue?.ageSource ?? 'age');
+  const [ageSource, setAgeSource] = React.useState<ProfileAgeSource>(
+    initialValue?.ageSource ?? 'age',
+  );
   const [age, setAge] = React.useState(initialValue?.ageYears ? String(initialValue.ageYears) : '');
   const defaultDob = React.useMemo(() => {
     const date = new Date();
     date.setFullYear(date.getFullYear() - 30);
     return date;
   }, []);
-  const [dateOfBirth, setDateOfBirth] = React.useState(
-    () => initialValue?.dateOfBirth ? fromBirthDateKey(initialValue.dateOfBirth) ?? defaultDob : defaultDob,
+  const [dateOfBirth, setDateOfBirth] = React.useState(() =>
+    initialValue?.dateOfBirth
+      ? (fromBirthDateKey(initialValue.dateOfBirth) ?? defaultDob)
+      : defaultDob,
   );
   const [gender, setGender] = React.useState<Gender | null>(initialValue?.gender ?? null);
-  const [heightUnit, setHeightUnit] = React.useState<HeightUnit>(initialValue?.inputHeightUnit ?? 'cm');
-  const [heightCm, setHeightCm] = React.useState(initialValue ? editableNumber(initialValue.heightCm) : '');
+  const [heightUnit, setHeightUnit] = React.useState<HeightUnit>(
+    initialValue?.inputHeightUnit ?? 'cm',
+  );
+  const [heightCm, setHeightCm] = React.useState(
+    initialValue ? editableNumber(initialValue.heightCm) : '',
+  );
   const imperial = centimetersToFeetInches(initialValue?.heightCm ?? 0);
   const [heightFeet, setHeightFeet] = React.useState(initialValue ? String(imperial.feet) : '');
-  const [heightInches, setHeightInches] = React.useState(initialValue ? editableNumber(imperial.inches) : '');
-  const [photo, setPhoto] = React.useState<ProfilePhoto>(initialValue?.photo ?? { kind: 'none', ref: null });
+  const [heightInches, setHeightInches] = React.useState(
+    initialValue ? editableNumber(imperial.inches) : '',
+  );
+  const [photo, setPhoto] = React.useState<ProfilePhoto>(
+    initialValue?.photo ?? { kind: 'none', ref: null },
+  );
   const [showPhotoOptions, setShowPhotoOptions] = React.useState(false);
   const [showAvatars, setShowAvatars] = React.useState(false);
   const [photoBusy, setPhotoBusy] = React.useState(false);
   const [errors, setErrors] = React.useState<ProfileValidationErrors>({});
 
   const clearErrors = () => setErrors({});
-  const parsedHeight = heightUnit === 'cm'
-    ? parseNumber(heightCm)
-    : feetInchesToCentimeters(parseNumber(heightFeet), parseNumber(heightInches));
+  const parsedHeight =
+    heightUnit === 'cm'
+      ? parseNumber(heightCm)
+      : feetInchesToCentimeters(parseNumber(heightFeet), parseNumber(heightInches));
 
   const replacePhoto = async (next: ProfilePhoto) => {
-    if (photo.kind === 'local' && photo.ref !== initialValue?.photo.ref) removePrivateProfilePhoto(photo);
+    if (photo.kind === 'local' && photo.ref !== initialValue?.photo.ref)
+      removePrivateProfilePhoto(photo);
     setPhoto(next);
   };
 
   const pickPhoto = async (source: 'camera' | 'library') => {
-    let imagePicker: typeof import('expo-image-picker');
+    let imagePicker: typeof ExpoImagePicker;
     try {
       imagePicker = await import('expo-image-picker');
     } catch {
@@ -267,9 +358,10 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
     }
 
     try {
-      const permission = source === 'camera'
-        ? await imagePicker.requestCameraPermissionsAsync()
-        : await imagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        source === 'camera'
+          ? await imagePicker.requestCameraPermissionsAsync()
+          : await imagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
           source === 'camera' ? 'Camera access is off' : 'Photo access is off',
@@ -278,15 +370,29 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
         return;
       }
       setPhotoBusy(true);
-      const result = source === 'camera'
-        ? await imagePicker.launchCameraAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 })
-        : await imagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      const result =
+        source === 'camera'
+          ? await imagePicker.launchCameraAsync({
+              mediaTypes: 'images',
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            })
+          : await imagePicker.launchImageLibraryAsync({
+              mediaTypes: 'images',
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
       if (!result.canceled && result.assets[0]) {
         await replacePhoto(await persistProfilePhoto(result.assets[0].uri));
         setShowPhotoOptions(false);
       }
     } catch (error) {
-      Alert.alert('Picture could not be saved', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'Picture could not be saved',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setPhotoBusy(false);
     }
@@ -321,7 +427,8 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
     };
     const nextErrors = validateProfileInput(input);
     if (!gender) nextErrors.gender = 'Choose a gender option.';
-    if (heightUnit === 'ft-in' && !Number.isFinite(parsedHeight)) nextErrors.height = 'Use whole feet and inches from 0 up to 11.99.';
+    if (heightUnit === 'ft-in' && !Number.isFinite(parsedHeight))
+      nextErrors.height = 'Use whole feet and inches from 0 up to 11.99.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     await onSubmit(input);
@@ -330,7 +437,14 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
   return (
     <SheetScaffold
       testID="profile-form"
-      footer={<AppButton label={submitLabel} loading={submitting} onPress={() => void save()} testID="save-profile" />}
+      footer={
+        <AppButton
+          label={submitLabel}
+          loading={submitting}
+          onPress={() => void save()}
+          testID="save-profile"
+        />
+      }
     >
       <View style={{ alignItems: 'center', gap: 12 }}>
         <View style={{ position: 'relative', opacity: photoBusy ? 0.55 : 1 }}>
@@ -366,7 +480,10 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
           </Pressable>
         </View>
         {photoBusy ? <ActivityIndicator color={theme.colors.accent} /> : null}
-        <Text selectable style={{ color: theme.colors.textMuted, textAlign: 'center', lineHeight: 20 }}>
+        <Text
+          selectable
+          style={{ color: theme.colors.textMuted, textAlign: 'center', lineHeight: 20 }}
+        >
           Tap the pencil to choose a photo or avatar.
         </Text>
       </View>
@@ -374,7 +491,11 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
       {showPhotoOptions ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
           <SourceAction icon="camera" label="Camera" onPress={() => void pickPhoto('camera')} />
-          <SourceAction icon="image-outline" label="Photo Library" onPress={() => void pickPhoto('library')} />
+          <SourceAction
+            icon="image-outline"
+            label="Photo Library"
+            onPress={() => void pickPhoto('library')}
+          />
           <SourceAction
             icon="account-multiple-outline"
             label="Avatars"
@@ -396,57 +517,179 @@ export function ProfileForm({ initialValue, submitLabel, submitting, onSubmit }:
         />
       ) : null}
 
-      <FormField label="Name" value={name} onChangeText={(value) => { setName(value); clearErrors(); }} maxLength={80} returnKeyType="next" error={errors.name} testID="profile-name" />
+      <FormField
+        label="Name"
+        value={name}
+        onChangeText={(value) => {
+          setName(value);
+          clearErrors();
+        }}
+        maxLength={80}
+        returnKeyType="next"
+        error={errors.name}
+        testID="profile-name"
+      />
 
       <View style={{ gap: 9 }}>
-        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>Age information</Text>
+        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
+          Age information
+        </Text>
         <SegmentedControl
           accessibilityLabel="Age information"
           values={['Age', 'Date of birth']}
           selectedIndex={ageSource === 'age' ? 0 : 1}
-          onChange={(event) => { setAgeSource(event.nativeEvent.selectedSegmentIndex === 0 ? 'age' : 'dob'); clearErrors(); }}
+          onChange={(event) => {
+            setAgeSource(event.nativeEvent.selectedSegmentIndex === 0 ? 'age' : 'dob');
+            clearErrors();
+          }}
           style={{ height: 44 }}
         />
       </View>
       {ageSource === 'age' ? (
-        <FormField label="Age" value={age} onChangeText={(value) => { setAge(value); clearErrors(); }} keyboardType="number-pad" inputMode="numeric" error={errors.age} testID="profile-age" />
+        <FormField
+          label="Age"
+          value={age}
+          onChangeText={(value) => {
+            setAge(value);
+            clearErrors();
+          }}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          error={errors.age}
+          testID="profile-age"
+        />
       ) : (
-        <BirthDateField value={dateOfBirth} onChange={(value) => { setDateOfBirth(value); clearErrors(); }} error={errors.dateOfBirth} />
+        <BirthDateField
+          value={dateOfBirth}
+          onChange={(value) => {
+            setDateOfBirth(value);
+            clearErrors();
+          }}
+          error={errors.dateOfBirth}
+        />
       )}
 
       <View style={{ gap: 9 }}>
-        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>Gender</Text>
-        <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
+          Gender
+        </Text>
+        <View
+          accessibilityRole="radiogroup"
+          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
+        >
           {GENDERS.map((option) => {
             const checked = gender === option;
             return (
-              <Pressable key={option} accessibilityRole="radio" accessibilityState={{ checked }} accessibilityLabel={GENDER_LABELS[option]} onPress={() => { setGender(option); clearErrors(); }} testID={`profile-gender-${option}`} style={({ pressed }) => ({ minHeight: 42, justifyContent: 'center', borderRadius: 14, borderCurve: 'continuous', borderWidth: 1, borderColor: checked ? theme.colors.accent : theme.colors.border, backgroundColor: checked ? theme.colors.accentSoft : theme.colors.surface, paddingHorizontal: 13, opacity: pressed ? 0.78 : 1 })}>
-                <Text selectable style={{ color: checked ? theme.colors.accent : theme.colors.text, fontWeight: '700' }}>{GENDER_LABELS[option]}</Text>
+              <Pressable
+                key={option}
+                accessibilityRole="radio"
+                accessibilityState={{ checked }}
+                accessibilityLabel={GENDER_LABELS[option]}
+                onPress={() => {
+                  setGender(option);
+                  clearErrors();
+                }}
+                testID={`profile-gender-${option}`}
+                style={({ pressed }) => ({
+                  minHeight: 42,
+                  justifyContent: 'center',
+                  borderRadius: 14,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: checked ? theme.colors.accent : theme.colors.border,
+                  backgroundColor: checked ? theme.colors.accentSoft : theme.colors.surface,
+                  paddingHorizontal: 13,
+                  opacity: pressed ? 0.78 : 1,
+                })}
+              >
+                <Text
+                  selectable
+                  style={{
+                    color: checked ? theme.colors.accent : theme.colors.text,
+                    fontWeight: '700',
+                  }}
+                >
+                  {GENDER_LABELS[option]}
+                </Text>
               </Pressable>
             );
           })}
         </View>
-        {errors.gender ? <Text selectable style={{ color: theme.colors.danger, fontSize: 13 }}>{errors.gender}</Text> : null}
+        {errors.gender ? (
+          <Text selectable style={{ color: theme.colors.danger, fontSize: 13 }}>
+            {errors.gender}
+          </Text>
+        ) : null}
       </View>
 
       <View style={{ gap: 9 }}>
-        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>Height unit</Text>
-        <SegmentedControl accessibilityLabel="Height unit" values={['Centimetres', 'Feet & inches']} selectedIndex={heightUnit === 'cm' ? 0 : 1} onChange={(event) => changeHeightUnit(event.nativeEvent.selectedSegmentIndex === 0 ? 'cm' : 'ft-in')} style={{ height: 44 }} />
+        <Text selectable style={{ color: theme.colors.text, fontSize: 14, fontWeight: '700' }}>
+          Height unit
+        </Text>
+        <SegmentedControl
+          accessibilityLabel="Height unit"
+          values={['Centimetres', 'Feet & inches']}
+          selectedIndex={heightUnit === 'cm' ? 0 : 1}
+          onChange={(event) =>
+            changeHeightUnit(event.nativeEvent.selectedSegmentIndex === 0 ? 'cm' : 'ft-in')
+          }
+          style={{ height: 44 }}
+        />
       </View>
       {heightUnit === 'cm' ? (
-        <FormField label="Height (cm)" value={heightCm} onChangeText={(value) => { setHeightCm(value); clearErrors(); }} keyboardType="decimal-pad" inputMode="decimal" error={errors.height} testID="profile-height-cm" />
+        <FormField
+          label="Height (cm)"
+          value={heightCm}
+          onChangeText={(value) => {
+            setHeightCm(value);
+            clearErrors();
+          }}
+          keyboardType="decimal-pad"
+          inputMode="decimal"
+          error={errors.height}
+          testID="profile-height-cm"
+        />
       ) : (
         <View style={{ gap: 7 }}>
           <View style={{ flexDirection: compact ? 'column' : 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}><FormField label="Height (feet)" value={heightFeet} onChangeText={(value) => { setHeightFeet(value); clearErrors(); }} keyboardType="number-pad" inputMode="numeric" testID="profile-height-feet" /></View>
-            <View style={{ flex: 1 }}><FormField label="Height (inches)" value={heightInches} onChangeText={(value) => { setHeightInches(value); clearErrors(); }} keyboardType="decimal-pad" inputMode="decimal" testID="profile-height-inches" /></View>
+            <View style={{ flex: 1 }}>
+              <FormField
+                label="Height (feet)"
+                value={heightFeet}
+                onChangeText={(value) => {
+                  setHeightFeet(value);
+                  clearErrors();
+                }}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                testID="profile-height-feet"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FormField
+                label="Height (inches)"
+                value={heightInches}
+                onChangeText={(value) => {
+                  setHeightInches(value);
+                  clearErrors();
+                }}
+                keyboardType="decimal-pad"
+                inputMode="decimal"
+                testID="profile-height-inches"
+              />
+            </View>
           </View>
-          {errors.height ? <Text selectable style={{ color: theme.colors.danger, fontSize: 13 }}>{errors.height}</Text> : null}
+          {errors.height ? (
+            <Text selectable style={{ color: theme.colors.danger, fontSize: 13 }}>
+              {errors.height}
+            </Text>
+          ) : null}
         </View>
       )}
 
       <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, lineHeight: 19 }}>
-        Fitness Trail uses adult BMI categories. Profile details are copied into each new measurement and older history stays unchanged.
+        Fitness Trail uses adult BMI categories. Profile details are copied into each new
+        measurement and older history stays unchanged.
       </Text>
     </SheetScaffold>
   );

@@ -10,10 +10,10 @@ appId: com.uniquedev.fitnesstrail
 - inputText: Alex
 - tapOn:
     id: profile-age
-- inputText: "30"
+- inputText: '30'
 - tapOn:
     id: profile-height-cm
-- inputText: "175"
+- inputText: '175'
 - tapOn:
     id: profile-gender-woman
 - tapOn:
@@ -25,23 +25,23 @@ appId: com.uniquedev.fitnesstrail
 - assertVisible: New Measurement
 - tapOn:
     id: bmi-weight
-- inputText: "70"
+- inputText: '70'
 - tapOn:
     id: save-bmi-measurement
-- assertVisible: "22.9"
+- assertVisible: '22.9'
 - assertVisible: Healthy weight
 - stopApp
 - launchApp
 - tapOn: BMI
-- assertVisible: "22.9"
-- tapOn: "70.00 kg"
+- assertVisible: '22.9'
+- tapOn: '70.00 kg'
 - assertVisible: Edit Measurement
 - tapOn: Pounds
 - tapOn:
     id: bmi-weight
 - eraseText
-- inputText: "160"
+- inputText: '160'
 - tapOn:
     id: save-bmi-measurement
-- assertVisible: "23.7"
-- assertVisible: "160.00 lb"
+- assertVisible: '23.7'
+- assertVisible: '160.00 lb'

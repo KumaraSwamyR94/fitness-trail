@@ -38,7 +38,13 @@ export const BMI_CATEGORY_LABELS: Record<BmiCategory, string> = {
 };
 
 export function feetInchesToCentimeters(feet: number, inches: number): number {
-  if (!Number.isInteger(feet) || feet < 0 || !Number.isFinite(inches) || inches < 0 || inches >= 12) {
+  if (
+    !Number.isInteger(feet) ||
+    feet < 0 ||
+    !Number.isFinite(inches) ||
+    inches < 0 ||
+    inches >= 12
+  ) {
     return Number.NaN;
   }
   return (feet * INCHES_PER_FOOT + inches) * CENTIMETERS_PER_INCH;
@@ -90,7 +96,8 @@ export function validateBmiMeasurementInput(
   const errors: BmiValidationErrors = {};
   const measuredAt = input.measuredAt.getTime();
   if (!Number.isFinite(measuredAt)) errors.measuredAt = 'Choose a valid measurement date and time.';
-  else if (measuredAt > now) errors.measuredAt = 'Measurement date and time cannot be in the future.';
+  else if (measuredAt > now)
+    errors.measuredAt = 'Measurement date and time cannot be in the future.';
   if (!Number.isFinite(input.inputWeight) || input.inputWeight <= 0) {
     errors.weight = 'Enter a weight greater than 0.';
   }
@@ -115,7 +122,9 @@ export function filterMeasurementsByRange(
 ): BmiMeasurement[] {
   if (range === 'All') return measurements;
   const cutoff = now - RANGE_MILLISECONDS[range];
-  return measurements.filter((measurement) => measurement.measuredAt >= cutoff && measurement.measuredAt <= now);
+  return measurements.filter(
+    (measurement) => measurement.measuredAt >= cutoff && measurement.measuredAt <= now,
+  );
 }
 
 export function getChartDomain(values: number[], metric: BmiMetric): { min: number; max: number } {
@@ -124,10 +133,7 @@ export function getChartDomain(values: number[], metric: BmiMetric): { min: numb
   const minimum = Math.min(...finiteValues);
   const maximum = Math.max(...finiteValues);
   const span = maximum - minimum;
-  const padding = span === 0
-    ? metric === 'bmi'
-      ? 1
-      : Math.max(Math.abs(minimum) * 0.05, 1)
-    : span * 0.12;
+  const padding =
+    span === 0 ? (metric === 'bmi' ? 1 : Math.max(Math.abs(minimum) * 0.05, 1)) : span * 0.12;
   return { min: Math.max(0, minimum - padding), max: maximum + padding };
 }

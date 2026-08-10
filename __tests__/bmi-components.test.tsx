@@ -38,7 +38,7 @@ const initialValue: BmiMeasurementDraft = {
 async function renderForm(onSubmit = jest.fn(async () => undefined), value?: BmiMeasurementDraft) {
   return {
     onSubmit,
-    ...await render(
+    ...(await render(
       <SafeAreaProvider initialMetrics={initialMetrics}>
         <BmiMeasurementForm
           profile={profile}
@@ -48,21 +48,26 @@ async function renderForm(onSubmit = jest.fn(async () => undefined), value?: Bmi
           onSubmit={onSubmit}
         />
       </SafeAreaProvider>,
-    ),
+    )),
   };
 }
 
 describe('BMI measurement form', () => {
   test('shows required validation before submitting an empty measurement', async () => {
     const { getByTestId, findByText, onSubmit } = await renderForm();
-    fireEvent.press(getByTestId('save-bmi-measurement'));
+    await fireEvent.press(getByTestId('save-bmi-measurement'));
     expect(await findByText('Enter a weight greater than 0.')).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
   test('converts populated values when unit controls change', async () => {
-    const { getByLabelText, getByTestId, queryByTestId, getByText } = await renderForm(undefined, initialValue);
-    await fireEvent(getByLabelText('Weight unit'), 'onChange', { nativeEvent: { selectedSegmentIndex: 1 } });
+    const { getByLabelText, getByTestId, queryByTestId, getByText } = await renderForm(
+      undefined,
+      initialValue,
+    );
+    await fireEvent(getByLabelText('Weight unit'), 'onChange', {
+      nativeEvent: { selectedSegmentIndex: 1 },
+    });
     await waitFor(() => expect(getByTestId('bmi-weight').props.value).toBe('154.32'));
     expect(queryByTestId('bmi-age')).toBeNull();
     expect(getByText('175.0 cm')).toBeTruthy();
@@ -71,11 +76,15 @@ describe('BMI measurement form', () => {
   test('submits a complete prefilled measurement', async () => {
     const onSubmit = jest.fn(async () => undefined);
     const { getByTestId } = await renderForm(onSubmit, initialValue);
-    fireEvent.press(getByTestId('save-bmi-measurement'));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      inputWeight: 70,
-      inputWeightUnit: 'kg',
-    })));
+    await fireEvent.press(getByTestId('save-bmi-measurement'));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputWeight: 70,
+          inputWeightUnit: 'kg',
+        }),
+      ),
+    );
   });
 });
 
@@ -103,7 +112,9 @@ describe('BMI trend chart', () => {
     const empty = await render(<BmiTrendChart measurements={[]} metric="bmi" weightUnit="kg" />);
     expect(empty.getByLabelText('No BMI measurements in this range')).toBeTruthy();
     await empty.unmount();
-    const single = await render(<BmiTrendChart measurements={[measurement]} metric="bmi" weightUnit="kg" />);
+    const single = await render(
+      <BmiTrendChart measurements={[measurement]} metric="bmi" weightUnit="kg" />,
+    );
     expect(single.getByLabelText('One BMI measurement, 22.9')).toBeTruthy();
   });
 });

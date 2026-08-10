@@ -6,10 +6,12 @@ Fitness Trail is an offline-first iOS and Android strength-training and BMI jour
 
 ## Run locally
 
-Requirements: Node.js 22+, Yarn 1.x, and the current Expo Go app.
+Requirements: Node.js 22.23.1, Yarn 1.22.22, and the current Expo Go app. The Node and Yarn versions are pinned in `.nvmrc`, `package.json`, and the lockfile so local development and CI use the same toolchain.
 
 ```bash
-yarn install
+nvm use
+corepack enable
+yarn install --frozen-lockfile
 yarn start
 ```
 
@@ -18,13 +20,24 @@ Use `yarn ios` or `yarn android` to open a local simulator/emulator. Add SDK-com
 ## Quality checks
 
 ```bash
+yarn format:check
 yarn typecheck
 yarn lint
 yarn test
-npx expo-doctor
+yarn doctor
+yarn verify
 npx expo export --platform ios
 npx expo export --platform android
 ```
+
+Run `yarn format` to apply the repository-wide Prettier rules and `yarn lint:fix` to apply safe ESLint fixes. EditorConfig and Git attributes enforce UTF-8, two-space indentation, final newlines, and LF line endings across operating systems.
+
+Git hooks are installed automatically by `yarn install`:
+
+- Pre-commit runs ESLint and Prettier only on staged files.
+- Commit-msg requires [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(workouts): add interval timer` or `fix(bmi): preserve measurement date`.
+
+The GitHub Actions quality workflow repeats formatting, type, lint, test, Expo Doctor, and commit-message checks. Hooks can be bypassed locally, so CI remains the source of truth.
 
 Maestro journeys live in `e2e/` and require a locally installed native build:
 

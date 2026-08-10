@@ -5,8 +5,8 @@ import { ActivityIndicator, Alert, View } from 'react-native';
 
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
-import { setRepository } from '@/data/set-repository';
 import { useProfiles } from '@/data/profile-context';
+import { setRepository } from '@/data/set-repository';
 import { SetForm } from '@/features/sets/set-form';
 import { useAppTheme } from '@/theme/use-app-theme';
 import type { ExerciseType, SetInput } from '@/types/workout';
@@ -36,8 +36,16 @@ export default function NewSetScreen(): React.ReactElement {
       setExerciseType(exercise?.exerciseType ?? null);
       const latest = sets.at(-1);
       if (!latest) return;
-      if (latest.kind === 'strength') setInitialValue({ kind: 'strength', reps: latest.reps, inputWeight: latest.inputWeight, inputUnit: latest.inputUnit, tutSeconds: latest.tutSeconds });
-      else if (latest.kind === 'duration') setInitialValue({ kind: 'duration', durationSeconds: latest.durationSeconds });
+      if (latest.kind === 'strength')
+        setInitialValue({
+          kind: 'strength',
+          reps: latest.reps,
+          inputWeight: latest.inputWeight,
+          inputUnit: latest.inputUnit,
+          tutSeconds: latest.tutSeconds,
+        });
+      else if (latest.kind === 'duration')
+        setInitialValue({ kind: 'duration', durationSeconds: latest.durationSeconds });
       else setInitialValue({ kind: 'calories', calories: latest.calories });
     });
   }, [db, exerciseId, loading, selectedProfile]);
@@ -53,14 +61,36 @@ export default function NewSetScreen(): React.ReactElement {
       router.back();
     } catch (error) {
       track('database_error', { operation: 'set_create', message: String(error) });
-      Alert.alert('Set was not saved', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'Set was not saved',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   if (!exerciseType) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.accent} /></View>;
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <ActivityIndicator color={theme.colors.accent} />
+      </View>
+    );
   }
-  return <SetForm exerciseType={exerciseType} initialValue={initialValue} submitLabel="Add Set" submitting={submitting} onSubmit={save} />;
+  return (
+    <SetForm
+      exerciseType={exerciseType}
+      initialValue={initialValue}
+      submitLabel="Add Set"
+      submitting={submitting}
+      onSubmit={save}
+    />
+  );
 }

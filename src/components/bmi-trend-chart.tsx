@@ -25,7 +25,11 @@ function valueLabel(value: number, metric: BmiMetric): string {
   return metric === 'bmi' ? value.toFixed(1) : value.toFixed(1);
 }
 
-export function BmiTrendChart({ measurements, metric, weightUnit }: BmiTrendChartProps): React.ReactElement {
+export function BmiTrendChart({
+  measurements,
+  metric,
+  weightUnit,
+}: BmiTrendChartProps): React.ReactElement {
   const theme = useAppTheme();
   const [width, setWidth] = React.useState(0);
   const ordered = React.useMemo(
@@ -37,23 +41,36 @@ export function BmiTrendChart({ measurements, metric, weightUnit }: BmiTrendChar
   const firstValue = values.at(0);
   const lastValue = values.at(-1);
   const unitLabel = metric === 'bmi' ? 'BMI' : weightUnit;
-  const summary = firstValue === undefined || lastValue === undefined
-    ? `No ${unitLabel} measurements in this range`
-    : ordered.length === 1
-      ? `One ${unitLabel} measurement, ${valueLabel(lastValue, metric)}`
-      : `${unitLabel} changed from ${valueLabel(firstValue, metric)} to ${valueLabel(lastValue, metric)}, ${lastValue >= firstValue ? 'up' : 'down'} ${Math.abs(lastValue - firstValue).toFixed(1)}`;
+  const summary =
+    firstValue === undefined || lastValue === undefined
+      ? `No ${unitLabel} measurements in this range`
+      : ordered.length === 1
+        ? `One ${unitLabel} measurement, ${valueLabel(lastValue, metric)}`
+        : `${unitLabel} changed from ${valueLabel(firstValue, metric)} to ${valueLabel(lastValue, metric)}, ${lastValue >= firstValue ? 'up' : 'down'} ${Math.abs(lastValue - firstValue).toFixed(1)}`;
 
   if (ordered.length === 0) {
     return (
       <View
         accessibilityRole="summary"
         accessibilityLabel={summary}
-        style={{ minHeight: 150, alignItems: 'center', justifyContent: 'center', padding: 20, gap: 5 }}
+        style={{
+          minHeight: 150,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+          gap: 5,
+        }}
       >
-        <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' }}>
+        <Text
+          selectable
+          style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' }}
+        >
           No measurements in this range
         </Text>
-        <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, textAlign: 'center' }}>
+        <Text
+          selectable
+          style={{ color: theme.colors.textMuted, fontSize: 13, textAlign: 'center' }}
+        >
           Choose a longer range or add a new measurement.
         </Text>
       </View>
@@ -67,9 +84,10 @@ export function BmiTrendChart({ measurements, metric, weightUnit }: BmiTrendChar
   const timeSpan = Math.max(1, lastTime - firstTime);
   const valueSpan = Math.max(Number.EPSILON, domain.max - domain.min);
   const points = ordered.map((measurement) => {
-    const x = ordered.length === 1
-      ? PADDING.left + plotWidth / 2
-      : PADDING.left + ((measurement.measuredAt - firstTime) / timeSpan) * plotWidth;
+    const x =
+      ordered.length === 1
+        ? PADDING.left + plotWidth / 2
+        : PADDING.left + ((measurement.measuredAt - firstTime) / timeSpan) * plotWidth;
     const value = valueFor(measurement, metric, weightUnit);
     const y = PADDING.top + (1 - (value - domain.min) / valueSpan) * plotHeight;
     return { x, y, value, id: measurement.id };
@@ -133,7 +151,12 @@ export function BmiTrendChart({ measurements, metric, weightUnit }: BmiTrendChar
               strokeWidth={3}
             />
           ))}
-          <SvgText x={PADDING.left} y={CHART_HEIGHT - 7} fill={theme.colors.textMuted} fontSize={11}>
+          <SvgText
+            x={PADDING.left}
+            y={CHART_HEIGHT - 7}
+            fill={theme.colors.textMuted}
+            fontSize={11}
+          >
             {dateFormatter.format(new Date(firstTime))}
           </SvgText>
           <SvgText

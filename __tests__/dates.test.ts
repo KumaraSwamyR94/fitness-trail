@@ -1,4 +1,11 @@
-import { buildMonthGrid, buildMonthWeeks, fromLocalDateKey, mergeDateAndTime, monthRange, toLocalDateKey } from '@/utils/dates';
+import {
+  buildMonthGrid,
+  buildMonthWeeks,
+  fromLocalDateKey,
+  mergeDateAndTime,
+  monthRange,
+  toLocalDateKey,
+} from '@/utils/dates';
 
 describe('stable local calendar dates', () => {
   test('round-trips a local date without UTC conversion', () => {
@@ -16,7 +23,13 @@ describe('stable local calendar dates', () => {
 
   test('merges an edited calendar date and clock time', () => {
     const result = mergeDateAndTime(new Date(2027, 5, 9), new Date(2020, 0, 1, 17, 35));
-    expect([result.getFullYear(), result.getMonth(), result.getDate(), result.getHours(), result.getMinutes()]).toEqual([2027, 5, 9, 17, 35]);
+    expect([
+      result.getFullYear(),
+      result.getMonth(),
+      result.getDate(),
+      result.getHours(),
+      result.getMinutes(),
+    ]).toEqual([2027, 5, 9, 17, 35]);
   });
 
   test('groups every calendar month into six complete seven-day rows', () => {

@@ -10,8 +10,8 @@ import { EmptyState } from '@/components/empty-state';
 import { SwipeActionRow } from '@/components/swipe-action-row';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
-import { setRepository } from '@/data/set-repository';
 import { useProfiles } from '@/data/profile-context';
+import { setRepository } from '@/data/set-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
 import type { SessionExercise, WorkoutSet } from '@/types/workout';
@@ -40,7 +40,12 @@ function SetGridHeader({ cardio }: { cardio: boolean }): React.ReactElement {
   return (
     <View
       importantForAccessibility="no-hide-descendants"
-      style={{ flexDirection: 'row', paddingHorizontal: compact ? 8 : 14, paddingVertical: 9, gap: compact ? 2 : 4 }}
+      style={{
+        flexDirection: 'row',
+        paddingHorizontal: compact ? 8 : 14,
+        paddingVertical: 9,
+        gap: compact ? 2 : 4,
+      }}
     >
       {(cardio ? cardioColumns : setColumns).map(({ label, flex }) => (
         <Text
@@ -48,7 +53,14 @@ function SetGridHeader({ cardio }: { cardio: boolean }): React.ReactElement {
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.72}
-          style={{ flex, minWidth: 0, color: theme.colors.textMuted, fontSize: 11, fontWeight: '800', textAlign: 'center' }}
+          style={{
+            flex,
+            minWidth: 0,
+            color: theme.colors.textMuted,
+            fontSize: 11,
+            fontWeight: '800',
+            textAlign: 'center',
+          }}
         >
           {label}
         </Text>
@@ -57,25 +69,49 @@ function SetGridHeader({ cardio }: { cardio: boolean }): React.ReactElement {
   );
 }
 
-function SetRow({ workoutSet, onDelete, onEdit }: { workoutSet: WorkoutSet; onDelete: () => void; onEdit: () => void }) {
+function SetRow({
+  workoutSet,
+  onDelete,
+  onEdit,
+}: {
+  workoutSet: WorkoutSet;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
-  const summary = workoutSet.kind === 'duration'
-    ? `Set ${workoutSet.position + 1}, duration ${formatDuration(workoutSet.durationSeconds)}`
-    : workoutSet.kind === 'calories'
-      ? `Set ${workoutSet.position + 1}, ${workoutSet.calories} calories`
-      : `Set ${workoutSet.position + 1}, ${workoutSet.reps} repetitions, ${workoutSet.inputWeight === null ? 'no added weight' : `${formatWeight(workoutSet.weightKg ?? 0)} kilograms, ${formatWeight(workoutSet.weightLb ?? 0)} pounds`}, ${workoutSet.tutSeconds} seconds time under tension`;
-  const cells: [string, number][] = workoutSet.kind === 'duration'
-    ? [[String(workoutSet.position + 1), cardioColumns[0].flex], ['Duration', cardioColumns[1].flex], [formatDuration(workoutSet.durationSeconds), cardioColumns[2].flex]]
-    : workoutSet.kind === 'calories'
-      ? [[String(workoutSet.position + 1), cardioColumns[0].flex], ['Calories', cardioColumns[1].flex], [`${workoutSet.calories} kcal`, cardioColumns[2].flex]]
-      : [
-          [String(workoutSet.position + 1), setColumns[0].flex],
-          [String(workoutSet.reps), setColumns[1].flex],
-          [workoutSet.weightKg === null ? '—' : formatWeight(workoutSet.weightKg), setColumns[2].flex],
-          [workoutSet.weightLb === null ? '—' : formatWeight(workoutSet.weightLb), setColumns[3].flex],
-          [`${workoutSet.tutSeconds}s`, setColumns[4].flex],
-        ];
+  const summary =
+    workoutSet.kind === 'duration'
+      ? `Set ${workoutSet.position + 1}, duration ${formatDuration(workoutSet.durationSeconds)}`
+      : workoutSet.kind === 'calories'
+        ? `Set ${workoutSet.position + 1}, ${workoutSet.calories} calories`
+        : `Set ${workoutSet.position + 1}, ${workoutSet.reps} repetitions, ${workoutSet.inputWeight === null ? 'no added weight' : `${formatWeight(workoutSet.weightKg ?? 0)} kilograms, ${formatWeight(workoutSet.weightLb ?? 0)} pounds`}, ${workoutSet.tutSeconds} seconds time under tension`;
+  const cells: [string, number][] =
+    workoutSet.kind === 'duration'
+      ? [
+          [String(workoutSet.position + 1), cardioColumns[0].flex],
+          ['Duration', cardioColumns[1].flex],
+          [formatDuration(workoutSet.durationSeconds), cardioColumns[2].flex],
+        ]
+      : workoutSet.kind === 'calories'
+        ? [
+            [String(workoutSet.position + 1), cardioColumns[0].flex],
+            ['Calories', cardioColumns[1].flex],
+            [`${workoutSet.calories} kcal`, cardioColumns[2].flex],
+          ]
+        : [
+            [String(workoutSet.position + 1), setColumns[0].flex],
+            [String(workoutSet.reps), setColumns[1].flex],
+            [
+              workoutSet.weightKg === null ? '—' : formatWeight(workoutSet.weightKg),
+              setColumns[2].flex,
+            ],
+            [
+              workoutSet.weightLb === null ? '—' : formatWeight(workoutSet.weightLb),
+              setColumns[3].flex,
+            ],
+            [`${workoutSet.tutSeconds}s`, setColumns[4].flex],
+          ];
   return (
     <SwipeActionRow onDelete={onDelete} deleteLabel={`Delete set ${workoutSet.position + 1}`}>
       <Pressable
@@ -103,7 +139,15 @@ function SetRow({ workoutSet, onDelete, onEdit }: { workoutSet: WorkoutSet; onDe
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.72}
-            style={{ flex, minWidth: 0, textAlign: 'center', color: theme.colors.text, fontSize: compact ? 14 : 15, fontWeight: index === 0 ? '800' : '600', fontVariant: ['tabular-nums'] }}
+            style={{
+              flex,
+              minWidth: 0,
+              textAlign: 'center',
+              color: theme.colors.text,
+              fontSize: compact ? 14 : 15,
+              fontWeight: index === 0 ? '800' : '600',
+              fontVariant: ['tabular-nums'],
+            }}
           >
             {value}
           </Text>
@@ -114,7 +158,10 @@ function SetRow({ workoutSet, onDelete, onEdit }: { workoutSet: WorkoutSet; onDe
 }
 
 export default function ExerciseScreen(): React.ReactElement {
-  const { sessionId, exerciseId } = useLocalSearchParams<{ sessionId: string; exerciseId: string }>();
+  const { sessionId, exerciseId } = useLocalSearchParams<{
+    sessionId: string;
+    exerciseId: string;
+  }>();
   const db = useSQLiteContext();
   const theme = useAppTheme();
   const { horizontalPadding } = useResponsiveLayout();
@@ -143,38 +190,58 @@ export default function ExerciseScreen(): React.ReactElement {
     setSets(nextSets);
   }, [db, exerciseId, profilesLoading, selectedProfile]);
 
-  useFocusEffect(React.useCallback(() => {
-    void version;
-    void load();
-  }, [load, version]));
+  useFocusEffect(
+    React.useCallback(() => {
+      void version;
+      void load();
+    }, [load, version]),
+  );
 
   const refresh = async () => {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const confirmDelete = (workoutSet: WorkoutSet) => {
-    Alert.alert(`Delete set ${workoutSet.position + 1}?`, 'This entry will be permanently removed.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete Set',
-        style: 'destructive',
-        onPress: () => {
-          const previous = sets;
-          setSets((current) => current.filter((item) => item.id !== workoutSet.id).map((item, position) => ({ ...item, position })));
-          if (!selectedProfile) return;
-          void setRepository.remove(db, selectedProfile.id, workoutSet.id, exerciseId).then(() => {
-            warningFeedback();
-            notifyDataChanged();
-            track('set_deleted', { setId: workoutSet.id, exerciseId });
-          }).catch((error) => {
-            setSets(previous);
-            track('database_error', { operation: 'set_delete', message: String(error) });
-            Alert.alert('Set was not deleted', error instanceof Error ? error.message : 'Please try again.');
-          });
+    Alert.alert(
+      `Delete set ${workoutSet.position + 1}?`,
+      'This entry will be permanently removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Set',
+          style: 'destructive',
+          onPress: () => {
+            const previous = sets;
+            setSets((current) =>
+              current
+                .filter((item) => item.id !== workoutSet.id)
+                .map((item, position) => ({ ...item, position })),
+            );
+            if (!selectedProfile) return;
+            void setRepository
+              .remove(db, selectedProfile.id, workoutSet.id, exerciseId)
+              .then(() => {
+                warningFeedback();
+                notifyDataChanged();
+                track('set_deleted', { setId: workoutSet.id, exerciseId });
+              })
+              .catch((error) => {
+                setSets(previous);
+                track('database_error', { operation: 'set_delete', message: String(error) });
+                Alert.alert(
+                  'Set was not deleted',
+                  error instanceof Error ? error.message : 'Please try again.',
+                );
+              });
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
@@ -192,7 +259,13 @@ export default function ExerciseScreen(): React.ReactElement {
           gap: 8,
           flexGrow: sets.length ? undefined : 1,
         }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={theme.colors.accent} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refresh()}
+            tintColor={theme.colors.accent}
+          />
+        }
       >
         <View style={{ gap: 4, paddingBottom: 6 }}>
           <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14 }}>
@@ -214,28 +287,49 @@ export default function ExerciseScreen(): React.ReactElement {
             <SetRow
               workoutSet={workoutSet}
               onDelete={() => confirmDelete(workoutSet)}
-              onEdit={() => router.push({
-                pathname: '/sessions/[sessionId]/exercises/[exerciseId]/sets/[setId]',
-                params: { sessionId, exerciseId, setId: workoutSet.id },
-              })}
+              onEdit={() =>
+                router.push({
+                  pathname: '/sessions/[sessionId]/exercises/[exerciseId]/sets/[setId]',
+                  params: { sessionId, exerciseId, setId: workoutSet.id },
+                })
+              }
             />
           </Animated.View>
         ))}
         {!sets.length ? (
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState title="No sets logged" message="Add your first set to start this exercise journal." />
+            <EmptyState
+              title="No sets logged"
+              message="Add your first set to start this exercise journal."
+            />
           </View>
         ) : null}
       </ScrollView>
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: Math.max(insets.bottom, 14), alignItems: 'center' }}>
-        <View style={{ width: '100%', maxWidth: readableContentMaxWidth, paddingHorizontal: horizontalPadding }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: Math.max(insets.bottom, 14),
+          alignItems: 'center',
+        }}
+      >
+        <View
+          style={{
+            width: '100%',
+            maxWidth: readableContentMaxWidth,
+            paddingHorizontal: horizontalPadding,
+          }}
+        >
           <AppButton
             label="Add Set"
             icon={{ name: 'plus' }}
-            onPress={() => router.push({
-              pathname: '/sessions/[sessionId]/exercises/[exerciseId]/sets/new',
-              params: { sessionId, exerciseId },
-            })}
+            onPress={() =>
+              router.push({
+                pathname: '/sessions/[sessionId]/exercises/[exerciseId]/sets/new',
+                params: { sessionId, exerciseId },
+              })
+            }
             testID="add-set"
           />
         </View>

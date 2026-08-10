@@ -60,7 +60,16 @@ export function AppButton({
       {loading ? (
         <ActivityIndicator color={foreground} />
       ) : (
-        <View style={{ width: '100%', minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <View
+          style={{
+            width: '100%',
+            minWidth: 0,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
           {icon ? <AppIcon {...icon} color={foreground} /> : null}
           <Text
             numberOfLines={1}

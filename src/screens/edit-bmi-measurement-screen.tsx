@@ -28,28 +28,41 @@ export default function EditBmiMeasurementScreen(): React.ReactElement {
       router.replace('/bmi');
       return;
     }
-    void bmiRepository.get(db, selectedProfile.id, measurementId).then((value) => {
-      if (!value) {
-        Alert.alert('Measurement not found', 'It may have already been deleted.', [
-          { text: 'Close', onPress: () => router.replace('/bmi') },
-        ]);
-        return;
-      }
-      setMeasurement(value);
-      setInitialValue({
-        measuredAt: new Date(value.measuredAt),
-        inputWeight: value.inputWeight,
-        inputWeightUnit: value.inputWeightUnit,
+    void bmiRepository
+      .get(db, selectedProfile.id, measurementId)
+      .then((value) => {
+        if (!value) {
+          Alert.alert('Measurement not found', 'It may have already been deleted.', [
+            { text: 'Close', onPress: () => router.replace('/bmi') },
+          ]);
+          return;
+        }
+        setMeasurement(value);
+        setInitialValue({
+          measuredAt: new Date(value.measuredAt),
+          inputWeight: value.inputWeight,
+          inputWeightUnit: value.inputWeightUnit,
+        });
+      })
+      .catch((error) => {
+        track('database_error', { operation: 'bmi_get', message: String(error) });
+        Alert.alert(
+          'Measurement could not be loaded',
+          error instanceof Error ? error.message : 'Please try again.',
+        );
       });
-    }).catch((error) => {
-      track('database_error', { operation: 'bmi_get', message: String(error) });
-      Alert.alert('Measurement could not be loaded', error instanceof Error ? error.message : 'Please try again.');
-    });
   }, [db, measurementId, profilesLoading, selectedProfile]);
 
   if (!initialValue) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
         <ActivityIndicator color={theme.colors.accent} />
       </View>
     );
@@ -66,7 +79,10 @@ export default function EditBmiMeasurementScreen(): React.ReactElement {
       router.back();
     } catch (error) {
       track('database_error', { operation: 'bmi_update', message: String(error) });
-      Alert.alert('Measurement was not updated', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'Measurement was not updated',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }

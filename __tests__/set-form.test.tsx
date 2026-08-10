@@ -11,14 +11,22 @@ const initialMetrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-async function renderForm(exerciseType: 'free_weight' | 'body_weight' | 'cardio', onSubmit = jest.fn(async () => undefined)) {
+async function renderForm(
+  exerciseType: 'free_weight' | 'body_weight' | 'cardio',
+  onSubmit = jest.fn(async () => undefined),
+) {
   return {
     onSubmit,
-    ...await render(
+    ...(await render(
       <SafeAreaProvider initialMetrics={initialMetrics}>
-        <SetForm exerciseType={exerciseType} submitLabel="Save" submitting={false} onSubmit={onSubmit} />
+        <SetForm
+          exerciseType={exerciseType}
+          submitLabel="Save"
+          submitting={false}
+          onSubmit={onSubmit}
+        />
       </SafeAreaProvider>,
-    ),
+    )),
   };
 }
 
@@ -28,13 +36,15 @@ describe('category-aware set form', () => {
     expect(getByTestId('set-weight').props.value).toBe('');
     await fireEvent.changeText(getByTestId('set-reps'), '12');
     await fireEvent.press(getByTestId('save-set'));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
-      kind: 'strength',
-      reps: 12,
-      inputWeight: null,
-      inputUnit: 'kg',
-      tutSeconds: 0,
-    }));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        kind: 'strength',
+        reps: 12,
+        inputWeight: null,
+        inputUnit: 'kg',
+        tutSeconds: 0,
+      }),
+    );
     await unmount();
   });
 
@@ -44,13 +54,18 @@ describe('category-aware set form', () => {
     await fireEvent.changeText(getByTestId('set-duration-minutes'), '10');
     await fireEvent.changeText(getByTestId('set-duration-seconds'), '30');
     await fireEvent.press(getByTestId('save-set'));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ kind: 'duration', durationSeconds: 630 }));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({ kind: 'duration', durationSeconds: 630 }),
+    );
     await unmount();
   });
 
   test('switches cardio sets to positive whole calorie entry', async () => {
-    const { getByLabelText, getByTestId, findByText, onSubmit, unmount } = await renderForm('cardio');
-    await fireEvent(getByLabelText('Cardio metric'), 'onChange', { nativeEvent: { selectedSegmentIndex: 1 } });
+    const { getByLabelText, getByTestId, findByText, onSubmit, unmount } =
+      await renderForm('cardio');
+    await fireEvent(getByLabelText('Cardio metric'), 'onChange', {
+      nativeEvent: { selectedSegmentIndex: 1 },
+    });
     await fireEvent.changeText(getByTestId('set-calories'), '0');
     await fireEvent.press(getByTestId('save-set'));
     expect(await findByText('Enter whole calories of 1 or more.')).toBeTruthy();

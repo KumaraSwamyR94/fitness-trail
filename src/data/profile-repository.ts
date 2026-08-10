@@ -83,7 +83,9 @@ const overviewSelect = `
 
 export const profileRepository = {
   async list(db: SQLiteDatabase): Promise<Profile[]> {
-    const rows = await db.getAllAsync<ProfileRow>('SELECT * FROM profiles ORDER BY updated_at DESC, created_at DESC');
+    const rows = await db.getAllAsync<ProfileRow>(
+      'SELECT * FROM profiles ORDER BY updated_at DESC, created_at DESC',
+    );
     return rows.map(mapProfile);
   },
 
@@ -109,9 +111,10 @@ export const profileRepository = {
       exerciseCount: row.exercise_count,
       setCount: row.set_count,
       bmiMeasurementCount: row.bmi_measurement_count,
-      latestBmi: row.latest_weight_kg && row.latest_height_cm
-        ? calculateBmi(row.latest_weight_kg, row.latest_height_cm)
-        : null,
+      latestBmi:
+        row.latest_weight_kg && row.latest_height_cm
+          ? calculateBmi(row.latest_weight_kg, row.latest_height_cm)
+          : null,
       latestWeight: row.latest_weight,
       latestWeightUnit: row.latest_weight_unit,
     };
@@ -122,7 +125,9 @@ export const profileRepository = {
     const id = randomUUID();
     const now = Date.now();
     await db.withExclusiveTransactionAsync(async (transaction) => {
-      const count = await transaction.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM profiles');
+      const count = await transaction.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) AS count FROM profiles',
+      );
       await transaction.runAsync(
         `INSERT INTO profiles
          (id, name, age_source, age_years, date_of_birth, gender, input_height_unit, height_cm,
@@ -142,8 +147,14 @@ export const profileRepository = {
         now,
       );
       if ((count?.count ?? 0) === 0) {
-        await transaction.runAsync('UPDATE sessions SET profile_id = ? WHERE profile_id IS NULL', id);
-        await transaction.runAsync('UPDATE bmi_measurements SET profile_id = ? WHERE profile_id IS NULL', id);
+        await transaction.runAsync(
+          'UPDATE sessions SET profile_id = ? WHERE profile_id IS NULL',
+          id,
+        );
+        await transaction.runAsync(
+          'UPDATE bmi_measurements SET profile_id = ? WHERE profile_id IS NULL',
+          id,
+        );
       }
       await transaction.runAsync(
         `INSERT INTO profile_state (singleton, selected_profile_id) VALUES (1, ?)
@@ -177,7 +188,10 @@ export const profileRepository = {
   },
 
   async select(db: SQLiteDatabase, id: string): Promise<void> {
-    const exists = await db.getFirstAsync<{ id: string }>('SELECT id FROM profiles WHERE id = ?', id);
+    const exists = await db.getFirstAsync<{ id: string }>(
+      'SELECT id FROM profiles WHERE id = ?',
+      id,
+    );
     if (!exists) throw new Error('Profile not found.');
     await db.runAsync(
       `INSERT INTO profile_state (singleton, selected_profile_id) VALUES (1, ?)
@@ -199,7 +213,10 @@ export const profileRepository = {
           'SELECT id FROM profiles ORDER BY updated_at DESC, created_at DESC LIMIT 1',
         );
         nextSelectedId = replacement?.id ?? null;
-        await transaction.runAsync('UPDATE profile_state SET selected_profile_id = ? WHERE singleton = 1', nextSelectedId);
+        await transaction.runAsync(
+          'UPDATE profile_state SET selected_profile_id = ? WHERE singleton = 1',
+          nextSelectedId,
+        );
       } else {
         nextSelectedId = state?.selected_profile_id ?? null;
       }

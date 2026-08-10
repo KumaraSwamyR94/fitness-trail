@@ -21,8 +21,9 @@ export function formatDuration(totalSeconds: number): string {
 export function formatSetSummary(set: WorkoutSetSummary): string {
   if (set.kind === 'duration') return `${formatDuration(set.durationSeconds)} duration`;
   if (set.kind === 'calories') return `${set.calories} kcal`;
-  const load = set.inputWeight === null
-    ? 'body weight'
-    : `${formatWeight(set.inputUnit === 'lb' ? (set.weightLb ?? 0) : (set.weightKg ?? 0))} ${set.inputUnit}`;
+  const load =
+    set.inputWeight === null
+      ? 'body weight'
+      : `${formatWeight(set.inputUnit === 'lb' ? (set.weightLb ?? 0) : (set.weightKg ?? 0))} ${set.inputUnit}`;
   return `${load} × ${set.reps}`;
 }

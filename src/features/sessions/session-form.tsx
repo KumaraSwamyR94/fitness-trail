@@ -47,7 +47,14 @@ export function SessionForm({
   return (
     <SheetScaffold
       testID="session-form"
-      footer={<AppButton label={submitLabel} onPress={() => void submit()} loading={saving} testID="save-session" />}
+      footer={
+        <AppButton
+          label={submitLabel}
+          onPress={() => void submit()}
+          loading={saving}
+          testID="save-session"
+        />
+      }
     >
       <Text selectable style={{ color: theme.colors.textMuted, lineHeight: 21 }}>
         Name the workout and choose when it belongs in your training journal.

@@ -13,7 +13,8 @@ function birthDateParts(value: string): { year: number; month: number; day: numb
   const month = Number(match[2]);
   const day = Number(match[3]);
   const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day)
+    return null;
   return { year, month, day };
 }
 
@@ -32,7 +33,8 @@ export function calculateAgeOnDate(dateOfBirth: string, onDate: Date): number {
   if (!birth) return Number.NaN;
   const current = dateParts(onDate);
   let age = current.year - birth.year;
-  if (current.month < birth.month || (current.month === birth.month && current.day < birth.day)) age -= 1;
+  if (current.month < birth.month || (current.month === birth.month && current.day < birth.day))
+    age -= 1;
   return age;
 }
 
@@ -44,24 +46,33 @@ export function profileAgeOnDate(
   return profile.dateOfBirth ? calculateAgeOnDate(profile.dateOfBirth, onDate) : Number.NaN;
 }
 
-export function validateProfileInput(input: ProfileInput, today = new Date()): ProfileValidationErrors {
+export function validateProfileInput(
+  input: ProfileInput,
+  today = new Date(),
+): ProfileValidationErrors {
   const errors: ProfileValidationErrors = {};
   const nameError = validateName(input.name);
   if (nameError) errors.name = nameError;
 
   if (input.ageSource === 'age') {
-    if (!Number.isInteger(input.ageYears) || (input.ageYears ?? 0) < 18 || (input.ageYears ?? 0) > 150) {
+    if (
+      !Number.isInteger(input.ageYears) ||
+      (input.ageYears ?? 0) < 18 ||
+      (input.ageYears ?? 0) > 150
+    ) {
       errors.age = 'Enter an age from 18 to 150.';
     }
   } else if (!input.dateOfBirth || !birthDateParts(input.dateOfBirth)) {
     errors.dateOfBirth = 'Choose a valid date of birth.';
   } else {
     const age = calculateAgeOnDate(input.dateOfBirth, today);
-    if (age < 18 || age > 150) errors.dateOfBirth = 'Profiles are available for adults aged 18 to 150.';
+    if (age < 18 || age > 150)
+      errors.dateOfBirth = 'Profiles are available for adults aged 18 to 150.';
   }
 
   if (!(input.gender in GENDER_LABELS)) errors.gender = 'Choose a gender option.';
-  if (!Number.isFinite(input.heightCm) || input.heightCm <= 0) errors.height = 'Enter a height greater than 0.';
+  if (!Number.isFinite(input.heightCm) || input.heightCm <= 0)
+    errors.height = 'Enter a height greater than 0.';
   return errors;
 }
 

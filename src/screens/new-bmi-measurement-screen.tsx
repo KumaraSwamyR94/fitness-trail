@@ -27,23 +27,37 @@ export default function NewBmiMeasurementScreen(): React.ReactElement {
       router.replace('/profiles/new');
       return;
     }
-    void bmiRepository.getLatest(db, selectedProfile.id).then((latest) => {
-      if (latest) {
-        setInitialValue({
-          measuredAt: new Date(),
-          inputWeight: latest.inputWeight,
-          inputWeightUnit: latest.inputWeightUnit,
-        });
-      }
-    }).catch((error) => {
-      track('database_error', { operation: 'bmi_latest', message: String(error) });
-      Alert.alert('Previous values could not be loaded', 'You can still enter a new measurement.');
-    }).finally(() => setLoading(false));
+    void bmiRepository
+      .getLatest(db, selectedProfile.id)
+      .then((latest) => {
+        if (latest) {
+          setInitialValue({
+            measuredAt: new Date(),
+            inputWeight: latest.inputWeight,
+            inputWeightUnit: latest.inputWeightUnit,
+          });
+        }
+      })
+      .catch((error) => {
+        track('database_error', { operation: 'bmi_latest', message: String(error) });
+        Alert.alert(
+          'Previous values could not be loaded',
+          'You can still enter a new measurement.',
+        );
+      })
+      .finally(() => setLoading(false));
   }, [db, profilesLoading, selectedProfile]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
         <ActivityIndicator color={theme.colors.accent} />
       </View>
     );
@@ -60,7 +74,10 @@ export default function NewBmiMeasurementScreen(): React.ReactElement {
       router.back();
     } catch (error) {
       track('database_error', { operation: 'bmi_create', message: String(error) });
-      Alert.alert('Measurement was not saved', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'Measurement was not saved',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }

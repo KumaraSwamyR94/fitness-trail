@@ -21,10 +21,18 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, S
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           style={{ flex: 1, backgroundColor: '#08111F' }}
-          contentContainerStyle={{ flexGrow: 1, padding: 28, alignItems: 'center', justifyContent: 'center' }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            padding: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
           <View style={{ width: '100%', maxWidth: formContentMaxWidth, gap: 14 }}>
-            <Text selectable style={{ color: '#F8FAFC', fontSize: 22, fontWeight: '800', textAlign: 'center' }}>
+            <Text
+              selectable
+              style={{ color: '#F8FAFC', fontSize: 22, fontWeight: '800', textAlign: 'center' }}
+            >
               Fitness Trail could not open its journal
             </Text>
             <Text selectable style={{ color: '#9FB0C6', textAlign: 'center', lineHeight: 20 }}>
