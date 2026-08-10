@@ -11,10 +11,10 @@ appId: com.uniquedev.fitnesstrail
 - inputText: Alex
 - tapOn:
     id: profile-age
-- inputText: "30"
+- inputText: '30'
 - tapOn:
     id: profile-height-cm
-- inputText: "175"
+- inputText: '175'
 - tapOn:
     id: profile-gender-prefer_not_to_say
 - tapOn:
@@ -41,18 +41,18 @@ appId: com.uniquedev.fitnesstrail
 - tapOn:
     id: set-weight
 - eraseText
-- inputText: "100"
+- inputText: '100'
 - tapOn:
     id: set-reps
 - eraseText
-- inputText: "5"
+- inputText: '5'
 - tapOn:
     id: set-tut
 - eraseText
-- inputText: "20"
+- inputText: '20'
 - tapOn:
     id: save-set
-- assertVisible: "220.46"
+- assertVisible: '220.46'
 - back
 - tapOn:
     id: add-exercise
@@ -70,10 +70,10 @@ appId: com.uniquedev.fitnesstrail
 - tapOn:
     id: set-reps
 - eraseText
-- inputText: "12"
+- inputText: '12'
 - tapOn:
     id: save-set
-- assertVisible: "12"
+- assertVisible: '12'
 - back
 - tapOn:
     id: add-exercise
@@ -90,26 +90,26 @@ appId: com.uniquedev.fitnesstrail
 - tapOn:
     id: set-duration-minutes
 - eraseText
-- inputText: "10"
+- inputText: '10'
 - tapOn:
     id: set-duration-seconds
 - eraseText
-- inputText: "30"
+- inputText: '30'
 - tapOn:
     id: save-set
-- assertVisible: "10:30"
+- assertVisible: '10:30'
 - tapOn:
     id: add-set
 - tapOn: Calories
 - tapOn:
     id: set-calories
-- inputText: "120"
+- inputText: '120'
 - tapOn:
     id: save-set
-- assertVisible: "120 kcal"
+- assertVisible: '120 kcal'
 - stopApp
 - launchApp
 - assertVisible: Fitness Trail
-- tapOn: ".* Session"
+- tapOn: '.* Session'
 - tapOn: Barbell Squat
-- assertVisible: "220.46"
+- assertVisible: '220.46'

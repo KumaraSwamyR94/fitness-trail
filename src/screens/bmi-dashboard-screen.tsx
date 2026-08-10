@@ -36,18 +36,21 @@ function MeasurementRow({
   onDelete: () => void;
 }): React.ReactElement {
   const theme = useAppTheme();
-  const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(measurement.measuredAt),
-  );
+  const date = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(measurement.measuredAt));
   return (
     <SwipeActionRow onDelete={onDelete} deleteLabel={`Delete BMI measurement from ${date}`}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${date}, BMI ${formatBmi(measurement.bmi)}, ${formatWeight(measurement.inputWeight)} ${measurement.inputWeightUnit}`}
-        onPress={() => router.push({
-          pathname: '/bmi/measurements/[measurementId]',
-          params: { measurementId: measurement.id },
-        })}
+        onPress={() =>
+          router.push({
+            pathname: '/bmi/measurements/[measurementId]',
+            params: { measurementId: measurement.id },
+          })
+        }
         testID={`bmi-history-${measurement.id}`}
         style={({ pressed }) => ({
           borderRadius: 18,
@@ -62,17 +65,38 @@ function MeasurementRow({
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
           <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-            <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800' }}>{date}</Text>
-            <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14, lineHeight: 20 }}>
+            <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800' }}>
+              {date}
+            </Text>
+            <Text
+              selectable
+              style={{ color: theme.colors.textMuted, fontSize: 14, lineHeight: 20 }}
+            >
               {formatWeight(measurement.inputWeight)} {measurement.inputWeightUnit} ·{' '}
               {formatHeight(measurement.heightCm, measurement.inputHeightUnit)}
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 2 }}>
-            <Text selectable style={{ color: theme.colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>
+            <Text
+              selectable
+              style={{
+                color: theme.colors.textMuted,
+                fontSize: 11,
+                fontWeight: '800',
+                letterSpacing: 0.5,
+              }}
+            >
               BMI
             </Text>
-            <Text selectable style={{ color: theme.colors.accent, fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
+            <Text
+              selectable
+              style={{
+                color: theme.colors.accent,
+                fontSize: 22,
+                fontWeight: '900',
+                fontVariant: ['tabular-nums'],
+              }}
+            >
               {formatBmi(measurement.bmi)}
             </Text>
           </View>
@@ -108,7 +132,10 @@ export default function BmiDashboardScreen(): React.ReactElement {
       setMeasurements(await bmiRepository.listAll(db, selectedProfile.id));
     } catch (error) {
       track('database_error', { operation: 'bmi_list', message: String(error) });
-      Alert.alert('BMI history could not be loaded', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'BMI history could not be loaded',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -129,36 +156,55 @@ export default function BmiDashboardScreen(): React.ReactElement {
   );
   const weightUnit = latest?.inputWeightUnit ?? 'kg';
 
-  const confirmDelete = React.useCallback((measurement: BmiMeasurement) => {
-    Alert.alert(
-      'Delete measurement?',
-      `This will permanently remove the BMI entry from ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(measurement.measuredAt))}.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            if (!selectedProfile) return;
-            void bmiRepository.remove(db, selectedProfile.id, measurement.id).then(() => {
-              setMeasurements((current) => current.filter((item) => item.id !== measurement.id));
-              notifyDataChanged();
-              track('bmi_measurement_deleted', { measurementId: measurement.id });
-              successFeedback();
-            }).catch((error) => {
-              track('database_error', { operation: 'bmi_delete', message: String(error) });
-              Alert.alert('Measurement was not deleted', error instanceof Error ? error.message : 'Please try again.');
-            });
+  const confirmDelete = React.useCallback(
+    (measurement: BmiMeasurement) => {
+      Alert.alert(
+        'Delete measurement?',
+        `This will permanently remove the BMI entry from ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(measurement.measuredAt))}.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              if (!selectedProfile) return;
+              void bmiRepository
+                .remove(db, selectedProfile.id, measurement.id)
+                .then(() => {
+                  setMeasurements((current) =>
+                    current.filter((item) => item.id !== measurement.id),
+                  );
+                  notifyDataChanged();
+                  track('bmi_measurement_deleted', { measurementId: measurement.id });
+                  successFeedback();
+                })
+                .catch((error) => {
+                  track('database_error', { operation: 'bmi_delete', message: String(error) });
+                  Alert.alert(
+                    'Measurement was not deleted',
+                    error instanceof Error ? error.message : 'Please try again.',
+                  );
+                });
+            },
           },
-        },
-      ],
-    );
-  }, [db, notifyDataChanged, selectedProfile]);
+        ],
+      );
+    },
+    [db, notifyDataChanged, selectedProfile],
+  );
 
   const header = (
     <View style={{ gap: 18 }}>
       <View style={{ gap: 4 }}>
-        <Text selectable style={{ color: theme.colors.accent, fontSize: 13, fontWeight: '800', letterSpacing: 0.7 }}>
+        <Text
+          selectable
+          style={{
+            color: theme.colors.accent,
+            fontSize: 13,
+            fontWeight: '800',
+            letterSpacing: 0.7,
+          }}
+        >
           BODY MEASUREMENT JOURNAL
         </Text>
         <Text selectable style={{ color: theme.colors.textMuted, fontSize: 16, lineHeight: 22 }}>
@@ -169,8 +215,18 @@ export default function BmiDashboardScreen(): React.ReactElement {
       {selectedProfile ? <SelectedProfileCard profile={selectedProfile} /> : null}
 
       {!selectedProfile && !profilesLoading ? (
-        <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, borderCurve: 'continuous' }}>
-          <EmptyState title="Choose a profile first" message="Create a profile before adding BMI measurements." icon={{ name: 'account-plus-outline' }} />
+        <View
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderRadius: 20,
+            borderCurve: 'continuous',
+          }}
+        >
+          <EmptyState
+            title="Choose a profile first"
+            message="Create a profile before adding BMI measurements."
+            icon={{ name: 'account-plus-outline' }}
+          />
         </View>
       ) : loading && !latest ? (
         <ActivityIndicator color={theme.colors.accent} style={{ padding: 34 }} />
@@ -190,20 +246,56 @@ export default function BmiDashboardScreen(): React.ReactElement {
         >
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text selectable style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.7 }}>
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.textMuted,
+                  fontSize: 12,
+                  fontWeight: '800',
+                  letterSpacing: 0.7,
+                }}
+              >
                 LATEST BMI
               </Text>
-              <Text selectable style={{ color: theme.colors.text, fontSize: 44, lineHeight: 50, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 44,
+                  lineHeight: 50,
+                  fontWeight: '900',
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
                 {formatBmi(latest.bmi)}
               </Text>
-              <Text selectable style={{ color: theme.colors.accent, fontSize: 15, fontWeight: '800' }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.accent, fontSize: 15, fontWeight: '800' }}
+              >
                 {BMI_CATEGORY_LABELS[classifyAdultBmi(latest.bmi)]}
               </Text>
             </View>
             {previous ? (
-              <View style={{ borderRadius: 12, backgroundColor: theme.colors.surfaceMuted, paddingHorizontal: 11, paddingVertical: 8 }}>
-                <Text selectable style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
-                  {latest.bmi - previous.bmi >= 0 ? '+' : ''}{(latest.bmi - previous.bmi).toFixed(1)} since last
+              <View
+                style={{
+                  borderRadius: 12,
+                  backgroundColor: theme.colors.surfaceMuted,
+                  paddingHorizontal: 11,
+                  paddingVertical: 8,
+                }}
+              >
+                <Text
+                  selectable
+                  style={{
+                    color: theme.colors.textMuted,
+                    fontSize: 12,
+                    fontWeight: '700',
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {latest.bmi - previous.bmi >= 0 ? '+' : ''}
+                  {(latest.bmi - previous.bmi).toFixed(1)} since last
                 </Text>
               </View>
             ) : null}
@@ -211,21 +303,53 @@ export default function BmiDashboardScreen(): React.ReactElement {
           <View style={{ height: 1, backgroundColor: theme.colors.border }} />
           <View style={{ flexDirection: 'row', gap: 16 }}>
             <View style={{ flex: 1, gap: 3 }}>
-              <Text selectable style={{ color: theme.colors.textMuted, fontSize: 11, fontWeight: '800' }}>WEIGHT</Text>
-              <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800', fontVariant: ['tabular-nums'] }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.textMuted, fontSize: 11, fontWeight: '800' }}
+              >
+                WEIGHT
+              </Text>
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 17,
+                  fontWeight: '800',
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
                 {formatWeight(latest.inputWeight)} {latest.inputWeightUnit}
               </Text>
             </View>
             <View style={{ flex: 1, gap: 3 }}>
-              <Text selectable style={{ color: theme.colors.textMuted, fontSize: 11, fontWeight: '800' }}>HEIGHT</Text>
-              <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800', fontVariant: ['tabular-nums'] }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.textMuted, fontSize: 11, fontWeight: '800' }}
+              >
+                HEIGHT
+              </Text>
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 17,
+                  fontWeight: '800',
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
                 {formatHeight(latest.heightCm, latest.inputHeightUnit)}
               </Text>
             </View>
           </View>
         </View>
       ) : (
-        <View style={{ backgroundColor: theme.colors.surface, borderRadius: 20, borderCurve: 'continuous' }}>
+        <View
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderRadius: 20,
+            borderCurve: 'continuous',
+          }}
+        >
           <EmptyState
             title="Start your BMI trail"
             message="Add your first measurement to see a current BMI, trend chart, and history."
@@ -241,48 +365,62 @@ export default function BmiDashboardScreen(): React.ReactElement {
         testID="add-bmi-measurement"
       />
 
-      {selectedProfile ? <View
-        style={{
-          borderRadius: 20,
-          borderCurve: 'continuous',
-          backgroundColor: theme.colors.surface,
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          padding: 15,
-          gap: 13,
-        }}
-      >
+      {selectedProfile ? (
+        <View
+          style={{
+            borderRadius: 20,
+            borderCurve: 'continuous',
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: 15,
+            gap: 13,
+          }}
+        >
+          <View style={{ gap: 4 }}>
+            <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>
+              Trend
+            </Text>
+            <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
+              {metric === 'bmi' ? 'BMI over time' : `Weight over time (${weightUnit})`}
+            </Text>
+          </View>
+          <SegmentedControl
+            accessibilityLabel="Trend metric"
+            values={['BMI', 'Weight']}
+            selectedIndex={metric === 'bmi' ? 0 : 1}
+            onChange={(event) =>
+              setMetric(event.nativeEvent.selectedSegmentIndex === 0 ? 'bmi' : 'weight')
+            }
+            style={{ height: 40 }}
+            testID="bmi-metric-control"
+          />
+          <SegmentedControl
+            accessibilityLabel="Trend time range"
+            values={[...BMI_RANGES]}
+            selectedIndex={BMI_RANGES.indexOf(range)}
+            onChange={(event) => setRange(BMI_RANGES[event.nativeEvent.selectedSegmentIndex])}
+            style={{ height: 40 }}
+            testID="bmi-range-control"
+          />
+          <BmiTrendChart
+            measurements={filteredMeasurements}
+            metric={metric}
+            weightUnit={weightUnit}
+          />
+        </View>
+      ) : null}
+
+      {selectedProfile ? (
         <View style={{ gap: 4 }}>
-          <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>Trend</Text>
+          <Text selectable style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900' }}>
+            History
+          </Text>
           <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
-            {metric === 'bmi' ? 'BMI over time' : `Weight over time (${weightUnit})`}
+            Tap to edit or swipe left to delete.
           </Text>
         </View>
-        <SegmentedControl
-          accessibilityLabel="Trend metric"
-          values={['BMI', 'Weight']}
-          selectedIndex={metric === 'bmi' ? 0 : 1}
-          onChange={(event) => setMetric(event.nativeEvent.selectedSegmentIndex === 0 ? 'bmi' : 'weight')}
-          style={{ height: 40 }}
-          testID="bmi-metric-control"
-        />
-        <SegmentedControl
-          accessibilityLabel="Trend time range"
-          values={[...BMI_RANGES]}
-          selectedIndex={BMI_RANGES.indexOf(range)}
-          onChange={(event) => setRange(BMI_RANGES[event.nativeEvent.selectedSegmentIndex])}
-          style={{ height: 40 }}
-          testID="bmi-range-control"
-        />
-        <BmiTrendChart measurements={filteredMeasurements} metric={metric} weightUnit={weightUnit} />
-      </View> : null}
-
-      {selectedProfile ? <View style={{ gap: 4 }}>
-        <Text selectable style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900' }}>History</Text>
-        <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
-          Tap to edit or swipe left to delete.
-        </Text>
-      </View> : null}
+      ) : null}
     </View>
   );
 
@@ -290,15 +428,22 @@ export default function BmiDashboardScreen(): React.ReactElement {
     <FlatList
       data={measurements}
       keyExtractor={(measurement) => measurement.id}
-      renderItem={({ item }) => <MeasurementRow measurement={item} onDelete={() => confirmDelete(item)} />}
+      renderItem={({ item }) => (
+        <MeasurementRow measurement={item} onDelete={() => confirmDelete(item)} />
+      )}
       ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
       ListHeaderComponent={header}
       ListHeaderComponentStyle={{ paddingBottom: measurements.length > 0 ? 12 : 0 }}
-      ListEmptyComponent={!loading && selectedProfile ? (
-        <Text selectable style={{ color: theme.colors.textMuted, textAlign: 'center', paddingVertical: 12 }}>
-          Your saved measurements will appear here.
-        </Text>
-      ) : null}
+      ListEmptyComponent={
+        !loading && selectedProfile ? (
+          <Text
+            selectable
+            style={{ color: theme.colors.textMuted, textAlign: 'center', paddingVertical: 12 }}
+          >
+            Your saved measurements will appear here.
+          </Text>
+        ) : null
+      }
       contentInsetAdjustmentBehavior="automatic"
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{

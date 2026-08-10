@@ -160,7 +160,11 @@ async function compactPositions(db: SQLiteDatabase, sessionId: string): Promise<
   }
 }
 
-async function assertSessionOwned(db: SQLiteDatabase, profileId: string, sessionId: string): Promise<void> {
+async function assertSessionOwned(
+  db: SQLiteDatabase,
+  profileId: string,
+  sessionId: string,
+): Promise<void> {
   const session = await db.getFirstAsync<{ id: string }>(
     'SELECT id FROM sessions WHERE id = ? AND profile_id = ?',
     sessionId,
@@ -170,7 +174,11 @@ async function assertSessionOwned(db: SQLiteDatabase, profileId: string, session
 }
 
 export const exerciseRepository = {
-  async listForSession(db: SQLiteDatabase, profileId: string, sessionId: string): Promise<ExerciseSummary[]> {
+  async listForSession(
+    db: SQLiteDatabase,
+    profileId: string,
+    sessionId: string,
+  ): Promise<ExerciseSummary[]> {
     const rows = await db.getAllAsync<ExerciseSummaryRow>(
       `SELECT se.*, mg.display_name AS muscle_group_name,
         COUNT(ws.id) AS set_count,
@@ -212,7 +220,11 @@ export const exerciseRepository = {
     return row ? mapExercise(row) : null;
   },
 
-  async searchCatalog(db: SQLiteDatabase, query: string, limit = 20): Promise<ExerciseCatalogEntry[]> {
+  async searchCatalog(
+    db: SQLiteDatabase,
+    query: string,
+    limit = 20,
+  ): Promise<ExerciseCatalogEntry[]> {
     const normalized = normalizeName(query);
     const rows = await db.getAllAsync<CatalogRow>(
       `SELECT ec.id, ec.normalized_name, ec.display_name, ec.use_count, ec.last_used_at, ec.exercise_type,
@@ -301,7 +313,13 @@ export const exerciseRepository = {
     return created;
   },
 
-  async rename(db: SQLiteDatabase, profileId: string, id: string, sessionId: string, name: string): Promise<void> {
+  async rename(
+    db: SQLiteDatabase,
+    profileId: string,
+    id: string,
+    sessionId: string,
+    name: string,
+  ): Promise<void> {
     const displayName = cleanDisplayName(name);
     const normalizedName = normalizeName(name);
     await db.withExclusiveTransactionAsync(async (transaction) => {
@@ -345,7 +363,12 @@ export const exerciseRepository = {
     });
   },
 
-  async remove(db: SQLiteDatabase, profileId: string, id: string, sessionId: string): Promise<void> {
+  async remove(
+    db: SQLiteDatabase,
+    profileId: string,
+    id: string,
+    sessionId: string,
+  ): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
       await assertSessionOwned(transaction, profileId, sessionId);
       const result = await transaction.runAsync(
@@ -358,7 +381,12 @@ export const exerciseRepository = {
     });
   },
 
-  async reorder(db: SQLiteDatabase, profileId: string, sessionId: string, orderedIds: string[]): Promise<void> {
+  async reorder(
+    db: SQLiteDatabase,
+    profileId: string,
+    sessionId: string,
+    orderedIds: string[],
+  ): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
       await assertSessionOwned(transaction, profileId, sessionId);
       await transaction.runAsync(

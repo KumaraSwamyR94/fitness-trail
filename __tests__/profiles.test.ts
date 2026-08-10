@@ -29,18 +29,32 @@ describe('profile age and validation', () => {
   });
 
   test('keeps manual ages fixed and derives DOB ages at measurement time', () => {
-    expect(profileAgeOnDate({ ageSource: 'age', ageYears: 42, dateOfBirth: null }, new Date(2000, 0, 1))).toBe(42);
-    expect(profileAgeOnDate({ ageSource: 'dob', ageYears: null, dateOfBirth: '1990-01-10' }, new Date(2026, 0, 9))).toBe(35);
+    expect(
+      profileAgeOnDate({ ageSource: 'age', ageYears: 42, dateOfBirth: null }, new Date(2000, 0, 1)),
+    ).toBe(42);
+    expect(
+      profileAgeOnDate(
+        { ageSource: 'dob', ageYears: null, dateOfBirth: '1990-01-10' },
+        new Date(2026, 0, 9),
+      ),
+    ).toBe(35);
   });
 
   test('requires adult age, gender, name, and positive height', () => {
     expect(validateProfileInput(validProfile, new Date(2026, 7, 9))).toEqual({});
-    expect(validateProfileInput({ ...validProfile, ageYears: 17, heightCm: 0, name: '' })).toEqual(expect.objectContaining({
-      age: expect.any(String),
-      height: expect.any(String),
-      name: expect.any(String),
-    }));
-    expect(validateProfileInput({ ...validProfile, ageSource: 'dob', ageYears: null, dateOfBirth: '2010-01-01' }, new Date(2026, 7, 9))).toEqual(expect.objectContaining({ dateOfBirth: expect.any(String) }));
+    expect(validateProfileInput({ ...validProfile, ageYears: 17, heightCm: 0, name: '' })).toEqual(
+      expect.objectContaining({
+        age: expect.any(String),
+        height: expect.any(String),
+        name: expect.any(String),
+      }),
+    );
+    expect(
+      validateProfileInput(
+        { ...validProfile, ageSource: 'dob', ageYears: null, dateOfBirth: '2010-01-01' },
+        new Date(2026, 7, 9),
+      ),
+    ).toEqual(expect.objectContaining({ dateOfBirth: expect.any(String) }));
   });
 
   test('stores birth dates as stable local date keys', () => {

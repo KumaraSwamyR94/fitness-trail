@@ -10,7 +10,11 @@ interface SheetScaffoldProps extends React.PropsWithChildren {
   testID?: string;
 }
 
-export function SheetScaffold({ children, footer, testID }: SheetScaffoldProps): React.ReactElement {
+export function SheetScaffold({
+  children,
+  footer,
+  testID,
+}: SheetScaffoldProps): React.ReactElement {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const { compact } = useResponsiveLayout();
@@ -19,8 +23,12 @@ export function SheetScaffold({ children, footer, testID }: SheetScaffoldProps):
 
   React.useEffect(() => {
     if (process.env.EXPO_OS !== 'android') return;
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () =>
+      setKeyboardVisible(true),
+    );
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () =>
+      setKeyboardVisible(false),
+    );
     return () => {
       showSubscription.remove();
       hideSubscription.remove();
@@ -46,7 +54,9 @@ export function SheetScaffold({ children, footer, testID }: SheetScaffoldProps):
           paddingBottom: 20,
         }}
       >
-        <View style={{ width: '100%', maxWidth: formContentMaxWidth, alignSelf: 'center', gap: 18 }}>
+        <View
+          style={{ width: '100%', maxWidth: formContentMaxWidth, alignSelf: 'center', gap: 18 }}
+        >
           {children}
         </View>
       </ScrollView>

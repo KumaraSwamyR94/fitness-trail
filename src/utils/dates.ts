@@ -26,12 +26,18 @@ export function addMonths(date: Date, amount: number): Date {
 
 export function getFirstWeekday(locale: string): number {
   try {
-    const weekInfo = (new Intl.Locale(locale) as Intl.Locale & {
-      weekInfo?: { firstDay: number };
-      getWeekInfo?: () => { firstDay: number };
-    }).weekInfo ?? (new Intl.Locale(locale) as Intl.Locale & {
-      getWeekInfo?: () => { firstDay: number };
-    }).getWeekInfo?.();
+    const weekInfo =
+      (
+        new Intl.Locale(locale) as Intl.Locale & {
+          weekInfo?: { firstDay: number };
+          getWeekInfo?: () => { firstDay: number };
+        }
+      ).weekInfo ??
+      (
+        new Intl.Locale(locale) as Intl.Locale & {
+          getWeekInfo?: () => { firstDay: number };
+        }
+      ).getWeekInfo?.();
     return weekInfo ? weekInfo.firstDay % 7 : 0;
   } catch {
     return 0;

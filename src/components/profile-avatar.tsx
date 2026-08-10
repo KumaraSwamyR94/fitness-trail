@@ -7,7 +7,14 @@ import type { ProfilePhoto } from '@/types/profile';
 import { profilePhotoUri } from '@/utils/profile-media';
 
 function initials(name: string): string {
-  return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '?';
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || '?'
+  );
 }
 
 export function ProfileAvatar({
@@ -30,14 +37,29 @@ export function ProfileAvatar({
   };
 
   if (uri) {
-    return <Image source={{ uri }} contentFit="cover" transition={120} style={style} accessibilityLabel={`${name} profile picture`} />;
+    return (
+      <Image
+        source={{ uri }}
+        contentFit="cover"
+        transition={120}
+        style={style}
+        accessibilityLabel={`${name} profile picture`}
+      />
+    );
   }
 
   return (
-    <View accessibilityLabel={`${name} initials`} style={{ ...style, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      accessibilityLabel={`${name} initials`}
+      style={{ ...style, alignItems: 'center', justifyContent: 'center' }}
+    >
       <Text
         selectable
-        style={{ color: theme.colors.accent, fontSize: Math.max(16, size * 0.34), fontWeight: '900' }}
+        style={{
+          color: theme.colors.accent,
+          fontSize: Math.max(16, size * 0.34),
+          fontWeight: '900',
+        }}
       >
         {initials(name)}
       </Text>

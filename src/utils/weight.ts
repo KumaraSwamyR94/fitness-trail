@@ -41,7 +41,10 @@ export function validateSetInput(input: SetInput, exerciseType: ExerciseType): s
   if (exerciseType !== 'body_weight' && input.inputWeight === null) {
     return 'Weight is required for free-weight and machine exercises.';
   }
-  if (input.inputWeight !== null && (!Number.isFinite(input.inputWeight) || input.inputWeight < 0)) {
+  if (
+    input.inputWeight !== null &&
+    (!Number.isFinite(input.inputWeight) || input.inputWeight < 0)
+  ) {
     return 'Weight must be 0 or more.';
   }
   if (!Number.isInteger(input.tutSeconds) || input.tutSeconds < 0) {

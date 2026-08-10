@@ -27,7 +27,10 @@ export default function NewProfileScreen(): React.ReactElement {
       successFeedback();
       router.back();
     } catch (error) {
-      Alert.alert('Profile was not saved', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'Profile was not saved',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }

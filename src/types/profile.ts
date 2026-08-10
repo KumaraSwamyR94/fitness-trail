@@ -3,9 +3,7 @@ import type { Gender, HeightUnit } from '@/types/bmi';
 export type ProfileAgeSource = 'age' | 'dob';
 
 export type ProfilePhoto =
-  | { kind: 'none'; ref: null }
-  | { kind: 'avatar'; ref: string }
-  | { kind: 'local'; ref: string };
+  { kind: 'none'; ref: null } | { kind: 'avatar'; ref: string } | { kind: 'local'; ref: string };
 
 export interface ProfileInput {
   name: string;

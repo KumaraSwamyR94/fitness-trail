@@ -42,14 +42,19 @@ export function ProfileProvider({ children }: React.PropsWithChildren): React.Re
         setLoading(false);
       },
     );
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [db]);
 
-  const selectProfile = React.useCallback(async (id: string) => {
-    await profileRepository.select(db, id);
-    await refreshProfiles();
-    notifyDataChanged();
-  }, [db, notifyDataChanged, refreshProfiles]);
+  const selectProfile = React.useCallback(
+    async (id: string) => {
+      await profileRepository.select(db, id);
+      await refreshProfiles();
+      notifyDataChanged();
+    },
+    [db, notifyDataChanged, refreshProfiles],
+  );
 
   const value = React.useMemo(
     () => ({ profiles, selectedProfile, loading, refreshProfiles, selectProfile }),

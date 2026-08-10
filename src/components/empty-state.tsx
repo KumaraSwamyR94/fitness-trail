@@ -10,11 +10,7 @@ interface EmptyStateProps {
   icon?: Pick<AppIconProps, 'name'>;
 }
 
-export function EmptyState({
-  title,
-  message,
-  icon = { name: 'weight-lifter' },
-}: EmptyStateProps) {
+export function EmptyState({ title, message, icon = { name: 'weight-lifter' } }: EmptyStateProps) {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
   return (
@@ -34,10 +30,16 @@ export function EmptyState({
       >
         <AppIcon {...icon} color={theme.colors.accent} size={24} />
       </View>
-      <Text selectable style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', textAlign: 'center' }}>
+      <Text
+        selectable
+        style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800', textAlign: 'center' }}
+      >
         {title}
       </Text>
-      <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
+      <Text
+        selectable
+        style={{ color: theme.colors.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}
+      >
         {message}
       </Text>
     </View>

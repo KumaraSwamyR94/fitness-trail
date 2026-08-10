@@ -25,13 +25,26 @@ export default function EditProfileScreen(): React.ReactElement {
   React.useEffect(() => {
     void profileRepository.get(db, profileId).then((value) => {
       if (!value) {
-        Alert.alert('Profile not found', 'It may have already been deleted.', [{ text: 'Close', onPress: () => router.back() }]);
+        Alert.alert('Profile not found', 'It may have already been deleted.', [
+          { text: 'Close', onPress: () => router.back() },
+        ]);
       } else setProfile(value);
     });
   }, [db, profileId]);
 
   if (!profile) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.accent} /></View>;
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <ActivityIndicator color={theme.colors.accent} />
+      </View>
+    );
   }
 
   const save = async (input: ProfileInput) => {
@@ -47,11 +60,21 @@ export default function EditProfileScreen(): React.ReactElement {
       successFeedback();
       router.back();
     } catch (error) {
-      Alert.alert('Profile was not updated', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'Profile was not updated',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  return <ProfileForm initialValue={profile} submitLabel="Save Changes" submitting={submitting} onSubmit={save} />;
+  return (
+    <ProfileForm
+      initialValue={profile}
+      submitLabel="Save Changes"
+      submitting={submitting}
+      onSubmit={save}
+    />
+  );
 }

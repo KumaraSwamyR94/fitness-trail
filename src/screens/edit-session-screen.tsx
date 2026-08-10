@@ -33,7 +33,14 @@ export default function EditSessionScreen() {
 
   if (!session) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
         <ActivityIndicator color={theme.colors.accent} />
       </View>
     );

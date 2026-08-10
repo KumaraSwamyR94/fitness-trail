@@ -1,13 +1,19 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { BmiMeasurement, BmiMeasurementDraft, BmiMeasurementInput, Gender, HeightUnit } from '@/types/bmi';
+import type {
+  BmiMeasurement,
+  BmiMeasurementDraft,
+  BmiMeasurementInput,
+  Gender,
+  HeightUnit,
+} from '@/types/bmi';
 import type { Profile } from '@/types/profile';
 import type { WeightUnit } from '@/types/workout';
 import { calculateBmi, firstBmiValidationError, validateBmiMeasurementInput } from '@/utils/bmi';
 import { toLocalDateKey } from '@/utils/dates';
-import { convertWeight } from '@/utils/weight';
 import { profileAgeOnDate } from '@/utils/profiles';
+import { convertWeight } from '@/utils/weight';
 
 interface BmiMeasurementRow {
   id: string;
@@ -80,7 +86,11 @@ export const bmiRepository = {
     return row ? mapMeasurement(row) : null;
   },
 
-  async create(db: SQLiteDatabase, profile: Profile, draft: BmiMeasurementDraft): Promise<BmiMeasurement> {
+  async create(
+    db: SQLiteDatabase,
+    profile: Profile,
+    draft: BmiMeasurementDraft,
+  ): Promise<BmiMeasurement> {
     const input: BmiMeasurementInput = {
       ...draft,
       inputHeightUnit: profile.inputHeightUnit,
@@ -134,7 +144,12 @@ export const bmiRepository = {
     return measurement;
   },
 
-  async update(db: SQLiteDatabase, profileId: string, id: string, draft: BmiMeasurementDraft): Promise<void> {
+  async update(
+    db: SQLiteDatabase,
+    profileId: string,
+    id: string,
+    draft: BmiMeasurementDraft,
+  ): Promise<void> {
     const current = await this.get(db, profileId, id);
     if (!current) throw new Error('Measurement not found.');
     const input: BmiMeasurementInput = {

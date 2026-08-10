@@ -79,9 +79,8 @@ export default function AddExerciseScreen(): React.ReactElement {
 
   const add = async (name: string, muscleGroupName: string, type: ExerciseType) => {
     const exerciseValidation = validateName(name);
-    const muscleGroupValidation = type === 'cardio' && !muscleGroupName.trim()
-      ? null
-      : validateName(muscleGroupName);
+    const muscleGroupValidation =
+      type === 'cardio' && !muscleGroupName.trim() ? null : validateName(muscleGroupName);
     setExerciseError(exerciseValidation);
     setMuscleGroupError(
       muscleGroupValidation === 'Enter a name.'
@@ -161,16 +160,23 @@ export default function AddExerciseScreen(): React.ReactElement {
         autoFocus
         returnKeyType="done"
         onSubmitEditing={() => {
-          if (query.trim() && (exerciseType === 'cardio' || muscleGroupQuery.trim())) addCurrentExercise();
-          else if (exerciseType !== 'cardio' && !muscleGroupQuery.trim()) setMuscleGroupError('Choose or enter a muscle group.');
+          if (query.trim() && (exerciseType === 'cardio' || muscleGroupQuery.trim()))
+            addCurrentExercise();
+          else if (exerciseType !== 'cardio' && !muscleGroupQuery.trim())
+            setMuscleGroupError('Choose or enter a muscle group.');
         }}
         maxLength={80}
         error={exerciseError}
         testID="exercise-name"
       />
       <View style={{ gap: 9 }}>
-        <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>Exercise type</Text>
-        <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
+          Exercise type
+        </Text>
+        <View
+          accessibilityRole="radiogroup"
+          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}
+        >
           {EXERCISE_TYPE_OPTIONS.map((option) => {
             const selected = option.value === exerciseType;
             return (
@@ -180,24 +186,53 @@ export default function AddExerciseScreen(): React.ReactElement {
                 accessibilityState={{ checked: selected }}
                 accessibilityLabel={option.label}
                 testID={`exercise-type-${option.value}`}
-                onPress={() => { setExerciseType(option.value); setMuscleGroupError(null); }}
+                onPress={() => {
+                  setExerciseType(option.value);
+                  setMuscleGroupError(null);
+                }}
                 style={({ pressed }) => ({
-                  width: '48%', minHeight: 46, flexGrow: 1, justifyContent: 'center', alignItems: 'center',
-                  paddingHorizontal: 12, borderRadius: 14, borderCurve: 'continuous', borderWidth: 1,
+                  width: '48%',
+                  minHeight: 46,
+                  flexGrow: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  paddingHorizontal: 12,
+                  borderRadius: 14,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
                   borderColor: selected ? theme.colors.accent : theme.colors.border,
-                  backgroundColor: selected ? theme.colors.accentSoft : pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+                  backgroundColor: selected
+                    ? theme.colors.accentSoft
+                    : pressed
+                      ? theme.colors.surfaceMuted
+                      : theme.colors.surface,
                 })}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
                   <AppIcon
                     name={exerciseTypeIcons[option.value]}
                     color={selected ? theme.colors.accent : theme.colors.textMuted}
                     size={21}
                   />
-                  <Text selectable style={{ color: selected ? theme.colors.accent : theme.colors.text, fontWeight: '700' }}>
+                  <Text
+                    selectable
+                    style={{
+                      color: selected ? theme.colors.accent : theme.colors.text,
+                      fontWeight: '700',
+                    }}
+                  >
                     {option.label}
                   </Text>
-                  {selected ? <AppIcon name="check-circle" color={theme.colors.accent} size={16} /> : null}
+                  {selected ? (
+                    <AppIcon name="check-circle" color={theme.colors.accent} size={16} />
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -215,7 +250,8 @@ export default function AddExerciseScreen(): React.ReactElement {
           placeholder="e.g. Chest"
           returnKeyType="done"
           onSubmitEditing={() => {
-            if (query.trim() && (exerciseType === 'cardio' || muscleGroupQuery.trim())) addCurrentExercise();
+            if (query.trim() && (exerciseType === 'cardio' || muscleGroupQuery.trim()))
+              addCurrentExercise();
           }}
           maxLength={80}
           error={muscleGroupError}
@@ -260,7 +296,8 @@ export default function AddExerciseScreen(): React.ReactElement {
                       fontWeight: '700',
                     }}
                   >
-                    {selected ? '✓ ' : ''}{item.displayName}
+                    {selected ? '✓ ' : ''}
+                    {item.displayName}
                   </Text>
                 </Pressable>
               );
@@ -303,15 +340,24 @@ export default function AddExerciseScreen(): React.ReactElement {
                 backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
               })}
             >
-              <Text selectable style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}
+              >
                 {item.displayName}
               </Text>
               {item.muscleGroupName ? (
-                <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}>
+                <Text
+                  selectable
+                  style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}
+                >
                   {item.muscleGroupName}
                 </Text>
               ) : null}
-              <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}
+              >
                 {exerciseTypeLabel(item.exerciseType)}
               </Text>
             </Pressable>

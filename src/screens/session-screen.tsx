@@ -6,9 +6,9 @@ import DraggableFlatList, { type RenderItemParams } from 'react-native-draggable
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { AppIcon } from '@/components/app-icon';
 import { EmptyState } from '@/components/empty-state';
 import { SwipeActionRow } from '@/components/swipe-action-row';
-import { AppIcon } from '@/components/app-icon';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { useProfiles } from '@/data/profile-context';
@@ -96,7 +96,8 @@ export default function SessionScreen(): React.ReactElement {
     Alert.alert('Session options', session?.name, [
       {
         text: 'Edit Session',
-        onPress: () => router.push({ pathname: '/sessions/[sessionId]/edit', params: { sessionId } }),
+        onPress: () =>
+          router.push({ pathname: '/sessions/[sessionId]/edit', params: { sessionId } }),
       },
       { text: 'Delete Session', style: 'destructive', onPress: confirmDeleteSession },
       { text: 'Cancel', style: 'cancel' },
@@ -124,7 +125,10 @@ export default function SessionScreen(): React.ReactElement {
               })
               .catch((error) => {
                 setExercises(previous);
-                Alert.alert('Exercise was not deleted', error instanceof Error ? error.message : 'Please try again.');
+                Alert.alert(
+                  'Exercise was not deleted',
+                  error instanceof Error ? error.message : 'Please try again.',
+                );
               });
           },
         },
@@ -160,7 +164,10 @@ export default function SessionScreen(): React.ReactElement {
     const editing = editingId === item.id;
 
     return (
-      <SwipeActionRow onDelete={() => confirmDeleteExercise(item)} deleteLabel={`Delete ${item.displayName}`}>
+      <SwipeActionRow
+        onDelete={() => confirmDeleteExercise(item)}
+        deleteLabel={`Delete ${item.displayName}`}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${item.displayName}, ${summary}`}
@@ -212,7 +219,9 @@ export default function SessionScreen(): React.ReactElement {
                     fontWeight: '700',
                   }}
                 />
-                {renameError ? <Text style={{ color: theme.colors.danger }}>{renameError}</Text> : null}
+                {renameError ? (
+                  <Text style={{ color: theme.colors.danger }}>{renameError}</Text>
+                ) : null}
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <Pressable onPress={() => setEditingId(null)} hitSlop={8}>
                     <Text style={{ color: theme.colors.textMuted, fontWeight: '700' }}>Cancel</Text>
@@ -224,10 +233,21 @@ export default function SessionScreen(): React.ReactElement {
               </>
             ) : (
               <>
-                <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800', flexShrink: 1 }}>
+                <Text
+                  selectable
+                  style={{
+                    color: theme.colors.text,
+                    fontSize: 17,
+                    fontWeight: '800',
+                    flexShrink: 1,
+                  }}
+                >
                   {item.displayName}
                 </Text>
-                <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14, flexShrink: 1 }}>
+                <Text
+                  selectable
+                  style={{ color: theme.colors.textMuted, fontSize: 14, flexShrink: 1 }}
+                >
                   {summary}
                 </Text>
               </>
@@ -257,8 +277,15 @@ export default function SessionScreen(): React.ReactElement {
         options={{
           title: session?.name ?? 'Session',
           headerRight: () => (
-            <Pressable accessibilityRole="button" accessibilityLabel="Session options" onPress={openMenu} hitSlop={10}>
-              <Text style={{ color: theme.colors.accent, fontSize: 24, fontWeight: '800' }}>•••</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Session options"
+              onPress={openMenu}
+              hitSlop={10}
+            >
+              <Text style={{ color: theme.colors.accent, fontSize: 24, fontWeight: '800' }}>
+                •••
+              </Text>
             </Pressable>
           ),
         }}
@@ -271,14 +298,22 @@ export default function SessionScreen(): React.ReactElement {
           const previous = exercises;
           setExercises(data);
           void exerciseRepository
-            .reorder(db, selectedProfile!.id, sessionId, data.map((item) => item.id))
+            .reorder(
+              db,
+              selectedProfile!.id,
+              sessionId,
+              data.map((item) => item.id),
+            )
             .then(() => {
               selectionFeedback();
               notifyDataChanged();
             })
             .catch((error) => {
               setExercises(previous);
-              Alert.alert('Order was not saved', error instanceof Error ? error.message : 'Please try again.');
+              Alert.alert(
+                'Order was not saved',
+                error instanceof Error ? error.message : 'Please try again.',
+              );
             });
         }}
         activationDistance={12}
@@ -299,9 +334,15 @@ export default function SessionScreen(): React.ReactElement {
           session ? (
             <View style={{ gap: 4, paddingBottom: 6 }}>
               <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14 }}>
-                {new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'short' }).format(session.scheduledAt)}
+                {new Intl.DateTimeFormat(undefined, {
+                  dateStyle: 'full',
+                  timeStyle: 'short',
+                }).format(session.scheduledAt)}
               </Text>
-              <Text selectable style={{ color: theme.colors.text, fontSize: 22, fontWeight: '800' }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.text, fontSize: 22, fontWeight: '800' }}
+              >
                 Exercises
               </Text>
             </View>
@@ -309,17 +350,37 @@ export default function SessionScreen(): React.ReactElement {
         }
         ListEmptyComponent={
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <EmptyState title="No exercises yet" message="Tap Add Exercise to start building this session." />
+            <EmptyState
+              title="No exercises yet"
+              message="Tap Add Exercise to start building this session."
+            />
           </View>
         }
       />
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: Math.max(insets.bottom, 14), alignItems: 'center' }}>
-        <View style={{ width: '100%', maxWidth: readableContentMaxWidth, paddingHorizontal: horizontalPadding }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: Math.max(insets.bottom, 14),
+          alignItems: 'center',
+        }}
+      >
+        <View
+          style={{
+            width: '100%',
+            maxWidth: readableContentMaxWidth,
+            paddingHorizontal: horizontalPadding,
+          }}
+        >
           <AppButton
             label="Add Exercise"
             icon={{ name: 'plus' }}
             onPress={() =>
-              router.push({ pathname: '/sessions/[sessionId]/exercises/new', params: { sessionId } })
+              router.push({
+                pathname: '/sessions/[sessionId]/exercises/new',
+                params: { sessionId },
+              })
             }
             testID="add-exercise"
           />

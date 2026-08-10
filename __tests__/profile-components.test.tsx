@@ -27,11 +27,11 @@ const initialMetrics = {
 async function renderProfileForm(onSubmit = jest.fn(async () => undefined)) {
   return {
     onSubmit,
-    ...await render(
+    ...(await render(
       <SafeAreaProvider initialMetrics={initialMetrics}>
         <ProfileForm submitLabel="Save" submitting={false} onSubmit={onSubmit} />
       </SafeAreaProvider>,
-    ),
+    )),
   };
 }
 
@@ -68,13 +68,17 @@ describe('profile form', () => {
     await fireEvent.changeText(getByTestId('profile-height-cm'), '175');
     await fireEvent.press(getByTestId('profile-gender-non_binary'));
     await fireEvent.press(getByTestId('save-profile'));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      name: 'Alex Trail',
-      ageSource: 'age',
-      ageYears: 30,
-      gender: 'non_binary',
-      heightCm: 175,
-      photo: { kind: 'none', ref: null },
-    })));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Alex Trail',
+          ageSource: 'age',
+          ageYears: 30,
+          gender: 'non_binary',
+          heightCm: 175,
+          photo: { kind: 'none', ref: null },
+        }),
+      ),
+    );
   });
 });

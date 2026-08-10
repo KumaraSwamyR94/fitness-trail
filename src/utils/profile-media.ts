@@ -1,5 +1,5 @@
-import { Directory, File, Paths } from 'expo-file-system';
 import { randomUUID } from 'expo-crypto';
+import { Directory, File, Paths } from 'expo-file-system';
 
 import type { ProfilePhoto } from '@/types/profile';
 
@@ -57,7 +57,8 @@ export async function cacheMissingAvatars(
       const target = avatarFile(item.id);
       try {
         await File.downloadFileAsync(avatarUrl(item.id), target, { idempotent: true });
-        if (!target.exists || target.size === 0) throw new Error('The downloaded avatar was empty.');
+        if (!target.exists || target.size === 0)
+          throw new Error('The downloaded avatar was empty.');
         const current = state.find((avatar) => avatar.id === item.id)!;
         current.uri = target.uri;
         current.error = false;
@@ -78,7 +79,9 @@ export async function cacheMissingAvatars(
 export async function persistProfilePhoto(sourceUri: string): Promise<ProfilePhoto> {
   ensureDirectory(mediaDirectory);
   const source = new File(sourceUri);
-  const extension = /^\.[a-z0-9]{2,5}$/i.test(source.extension) ? source.extension.toLowerCase() : '.jpg';
+  const extension = /^\.[a-z0-9]{2,5}$/i.test(source.extension)
+    ? source.extension.toLowerCase()
+    : '.jpg';
   const filename = `${randomUUID()}${extension}`;
   const destination = new File(mediaDirectory, filename);
   await source.copy(destination);

@@ -29,17 +29,11 @@ export default function TabsLayout(): React.ReactElement {
   return (
     <NativeTabs tintColor={theme.colors.accent} minimizeBehavior="onScrollDown">
       <NativeTabs.Trigger name="(workouts)">
-        <NativeTabs.Trigger.Icon
-          src={tabIcons?.workouts}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon src={tabIcons?.workouts} renderingMode="template" />
         <NativeTabs.Trigger.Label>Workouts</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="bmi">
-        <NativeTabs.Trigger.Icon
-          src={tabIcons?.bmi}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Icon src={tabIcons?.bmi} renderingMode="template" />
         <NativeTabs.Trigger.Label>BMI</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profiles">

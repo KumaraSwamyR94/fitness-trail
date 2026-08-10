@@ -1,0 +1,9 @@
+.expo/
+android/
+coverage/
+dist/
+ios/
+node_modules/
+patches/
+web-build/
+yarn.lock

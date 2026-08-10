@@ -77,19 +77,28 @@ describe('BMI and height utilities', () => {
   });
 
   test('validates future dates, positive values, and adult ages', () => {
-    expect(validateBmiMeasurementInput(validInput, new Date('2026-08-06T07:00:00.000Z').getTime())).toEqual({});
-    expect(validateBmiMeasurementInput({
-      ...validInput,
-      measuredAt: new Date('2026-08-07T00:00:00.000Z'),
-      inputWeight: 0,
-      heightCm: Number.NaN,
-      ageYears: 17,
-    }, new Date('2026-08-06T07:00:00.000Z').getTime())).toEqual(expect.objectContaining({
-      measuredAt: expect.any(String),
-      weight: expect.any(String),
-      height: expect.any(String),
-      age: expect.any(String),
-    }));
+    expect(
+      validateBmiMeasurementInput(validInput, new Date('2026-08-06T07:00:00.000Z').getTime()),
+    ).toEqual({});
+    expect(
+      validateBmiMeasurementInput(
+        {
+          ...validInput,
+          measuredAt: new Date('2026-08-07T00:00:00.000Z'),
+          inputWeight: 0,
+          heightCm: Number.NaN,
+          ageYears: 17,
+        },
+        new Date('2026-08-06T07:00:00.000Z').getTime(),
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        measuredAt: expect.any(String),
+        weight: expect.any(String),
+        height: expect.any(String),
+        age: expect.any(String),
+      }),
+    );
   });
 });
 
@@ -104,8 +113,15 @@ describe('BMI chart utilities', () => {
   ];
 
   test('filters inclusive rolling ranges and preserves all history', () => {
-    expect(filterMeasurementsByRange(values, '1W', now).map((item) => item.id)).toEqual(['today', 'week-boundary']);
-    expect(filterMeasurementsByRange(values, '30D', now).map((item) => item.id)).toEqual(['today', 'week-boundary', 'month']);
+    expect(filterMeasurementsByRange(values, '1W', now).map((item) => item.id)).toEqual([
+      'today',
+      'week-boundary',
+    ]);
+    expect(filterMeasurementsByRange(values, '30D', now).map((item) => item.id)).toEqual([
+      'today',
+      'week-boundary',
+      'month',
+    ]);
     expect(filterMeasurementsByRange(values, 'All', now)).toHaveLength(4);
   });
 

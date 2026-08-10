@@ -98,7 +98,12 @@ export function DateTimeField({
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
-                style={{ maxWidth: '100%', color: theme.colors.text, fontWeight: '600', textAlign: 'center' }}
+                style={{
+                  maxWidth: '100%',
+                  color: theme.colors.text,
+                  fontWeight: '600',
+                  textAlign: 'center',
+                }}
               >
                 {item.label}
               </Text>
@@ -108,7 +113,11 @@ export function DateTimeField({
         </View>
       )}
       {error ? (
-        <Text selectable accessibilityLiveRegion="polite" style={{ color: theme.colors.danger, fontSize: 13 }}>
+        <Text
+          selectable
+          accessibilityLiveRegion="polite"
+          style={{ color: theme.colors.danger, fontSize: 13 }}
+        >
           {error}
         </Text>
       ) : null}

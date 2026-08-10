@@ -35,7 +35,12 @@ function mapSet(row: SetRow): WorkoutSet {
   if (row.set_kind === 'calories' && row.calories !== null) {
     return { ...base, kind: 'calories', calories: row.calories };
   }
-  if (row.set_kind === 'strength' && row.reps !== null && row.input_unit && row.tut_seconds !== null) {
+  if (
+    row.set_kind === 'strength' &&
+    row.reps !== null &&
+    row.input_unit &&
+    row.tut_seconds !== null
+  ) {
     return {
       ...base,
       kind: 'strength',
@@ -85,9 +90,10 @@ function databaseValues(input: SetInput) {
   if (input.kind === 'calories') {
     return [input.kind, null, null, null, null, null, null, null, input.calories] as const;
   }
-  const converted = input.inputWeight === null
-    ? { weightKg: null, weightLb: null }
-    : convertWeight(input.inputWeight, input.inputUnit);
+  const converted =
+    input.inputWeight === null
+      ? { weightKg: null, weightLb: null }
+      : convertWeight(input.inputWeight, input.inputUnit);
   return [
     input.kind,
     input.reps,
@@ -106,14 +112,21 @@ async function compactPositions(db: SQLiteDatabase, exerciseId: string): Promise
     'SELECT id FROM workout_sets WHERE exercise_id = ? ORDER BY position, created_at',
     exerciseId,
   );
-  await db.runAsync('UPDATE workout_sets SET position = -position - 1 WHERE exercise_id = ?', exerciseId);
+  await db.runAsync(
+    'UPDATE workout_sets SET position = -position - 1 WHERE exercise_id = ?',
+    exerciseId,
+  );
   for (const [position, row] of rows.entries()) {
     await db.runAsync('UPDATE workout_sets SET position = ? WHERE id = ?', position, row.id);
   }
 }
 
 export const setRepository = {
-  async listForExercise(db: SQLiteDatabase, profileId: string, exerciseId: string): Promise<WorkoutSet[]> {
+  async listForExercise(
+    db: SQLiteDatabase,
+    profileId: string,
+    exerciseId: string,
+  ): Promise<WorkoutSet[]> {
     const rows = await db.getAllAsync<SetRow>(
       `SELECT ws.* FROM workout_sets ws
        JOIN session_exercises se ON se.id = ws.exercise_id
@@ -137,7 +150,12 @@ export const setRepository = {
     return row ? mapSet(row) : null;
   },
 
-  async create(db: SQLiteDatabase, profileId: string, exerciseId: string, input: SetInput): Promise<WorkoutSet> {
+  async create(
+    db: SQLiteDatabase,
+    profileId: string,
+    exerciseId: string,
+    input: SetInput,
+  ): Promise<WorkoutSet> {
     await assertCompatibleExercise(db, profileId, exerciseId, input);
     const next = await db.getFirstAsync<{ next_position: number }>(
       'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM workout_sets WHERE exercise_id = ?',
@@ -186,7 +204,12 @@ export const setRepository = {
     );
   },
 
-  async remove(db: SQLiteDatabase, profileId: string, id: string, exerciseId: string): Promise<void> {
+  async remove(
+    db: SQLiteDatabase,
+    profileId: string,
+    id: string,
+    exerciseId: string,
+  ): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
       await getOwnedExerciseType(transaction, profileId, exerciseId);
       const result = await transaction.runAsync(
