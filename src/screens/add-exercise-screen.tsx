@@ -73,6 +73,12 @@ export default function AddExerciseScreen(): React.ReactElement {
   }, [db, muscleGroupQuery]);
 
   const exactMatch = suggestions.find((item) => item.normalizedName === normalizeName(query));
+  const visibleSuggestions = React.useMemo(() => {
+    if (!query.trim()) return [];
+    if (!exactMatch) return suggestions.slice(0, 5);
+
+    return [exactMatch, ...suggestions.filter((item) => item.id !== exactMatch.id).slice(0, 4)];
+  }, [exactMatch, query, suggestions]);
   const exactMuscleGroup = muscleGroupSuggestions.find(
     (item) => item.normalizedName === normalizeName(muscleGroupQuery),
   );
@@ -169,6 +175,59 @@ export default function AddExerciseScreen(): React.ReactElement {
         error={exerciseError}
         testID="exercise-name"
       />
+      {query.trim() ? (
+        <View testID="inline-exercise-suggestions" style={{ gap: 8 }}>
+          <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
+            Exercise suggestions
+          </Text>
+          {visibleSuggestions.length === 0 ? (
+            <Text selectable style={{ color: theme.colors.textMuted }}>
+              No matching exercise yet.
+            </Text>
+          ) : (
+            visibleSuggestions.map((item) => (
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Select ${item.displayName}${item.muscleGroupName ? `, ${item.muscleGroupName}` : ''}`}
+                testID={`exercise-suggestion-${item.id}`}
+                onPress={() => selectExercise(item)}
+                style={({ pressed }) => ({
+                  minHeight: 52,
+                  justifyContent: 'center',
+                  paddingHorizontal: 15,
+                  borderRadius: 14,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+                })}
+              >
+                <Text
+                  selectable
+                  style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}
+                >
+                  {item.displayName}
+                </Text>
+                {item.muscleGroupName ? (
+                  <Text
+                    selectable
+                    style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}
+                  >
+                    {item.muscleGroupName}
+                  </Text>
+                ) : null}
+                <Text
+                  selectable
+                  style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}
+                >
+                  {exerciseTypeLabel(item.exerciseType)}
+                </Text>
+              </Pressable>
+            ))
+          )}
+        </View>
+      ) : null}
       <View style={{ gap: 9 }}>
         <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
           Exercise type
@@ -313,56 +372,6 @@ export default function AddExerciseScreen(): React.ReactElement {
             “{muscleGroupQuery.trim()}” will be saved as a reusable muscle group.
           </Text>
         ) : null}
-      </View>
-      <View style={{ gap: 8 }}>
-        <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
-          {query.trim() ? 'Exercise suggestions' : 'Recently used exercises'}
-        </Text>
-        {suggestions.length === 0 ? (
-          <Text selectable style={{ color: theme.colors.textMuted }}>
-            {query.trim() ? 'No matching exercise yet.' : 'Your exercise history will appear here.'}
-          </Text>
-        ) : (
-          suggestions.map((item) => (
-            <Pressable
-              key={item.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Select ${item.displayName}${item.muscleGroupName ? `, ${item.muscleGroupName}` : ''}`}
-              onPress={() => selectExercise(item)}
-              style={({ pressed }) => ({
-                minHeight: 52,
-                justifyContent: 'center',
-                paddingHorizontal: 15,
-                borderRadius: 14,
-                borderCurve: 'continuous',
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
-              })}
-            >
-              <Text
-                selectable
-                style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}
-              >
-                {item.displayName}
-              </Text>
-              {item.muscleGroupName ? (
-                <Text
-                  selectable
-                  style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}
-                >
-                  {item.muscleGroupName}
-                </Text>
-              ) : null}
-              <Text
-                selectable
-                style={{ color: theme.colors.textMuted, fontSize: 13, paddingTop: 3 }}
-              >
-                {exerciseTypeLabel(item.exerciseType)}
-              </Text>
-            </Pressable>
-          ))
-        )}
       </View>
     </SheetScaffold>
   );
