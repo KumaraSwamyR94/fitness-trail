@@ -1,7 +1,15 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { ExerciseType, SetInput, SetKind, WeightUnit, WorkoutSet } from '@/types/workout';
+import { DataConflictError } from '@/data/errors';
+import type {
+  ExerciseType,
+  PreviousExerciseWorkout,
+  SetInput,
+  SetKind,
+  WeightUnit,
+  WorkoutSet,
+} from '@/types/workout';
 import { convertWeight, validateSetInput } from '@/utils/weight';
 
 interface SetRow {
@@ -19,6 +27,15 @@ interface SetRow {
   calories: number | null;
   created_at: number;
   updated_at: number;
+}
+
+interface PreviousWorkoutRow {
+  session_id: string;
+  session_name: string;
+  scheduled_at: number;
+  exercise_id: string;
+  exercise_name: string;
+  exercise_type: ExerciseType;
 }
 
 function mapSet(row: SetRow): WorkoutSet {
@@ -138,6 +155,75 @@ export const setRepository = {
     return rows.map(mapSet);
   },
 
+  async getPreviousWorkout(
+    db: SQLiteDatabase,
+    profileId: string,
+    exerciseId: string,
+  ): Promise<PreviousExerciseWorkout | null> {
+    const previous = await db.getFirstAsync<PreviousWorkoutRow>(
+      `WITH current_exercise AS (
+         SELECT se.id, se.session_id, se.catalog_id, se.normalized_name, se.exercise_type,
+                s.scheduled_at, s.created_at
+         FROM session_exercises se
+         JOIN sessions s ON s.id = se.session_id
+         WHERE se.id = ? AND s.profile_id = ?
+       )
+       SELECT previous_session.id AS session_id,
+              previous_session.name AS session_name,
+              previous_session.scheduled_at,
+              previous_exercise.id AS exercise_id,
+              previous_exercise.display_name AS exercise_name,
+              previous_exercise.exercise_type
+       FROM current_exercise current
+       JOIN session_exercises previous_exercise ON (
+         (current.catalog_id IS NOT NULL AND previous_exercise.catalog_id = current.catalog_id)
+         OR
+         ((current.catalog_id IS NULL OR previous_exercise.catalog_id IS NULL)
+           AND previous_exercise.normalized_name = current.normalized_name
+           AND previous_exercise.exercise_type = current.exercise_type)
+       )
+       JOIN sessions previous_session ON previous_session.id = previous_exercise.session_id
+       WHERE previous_session.profile_id = ?
+         AND previous_session.id <> current.session_id
+         AND (
+           previous_session.scheduled_at < current.scheduled_at
+           OR (
+             previous_session.scheduled_at = current.scheduled_at
+             AND previous_session.created_at < current.created_at
+           )
+         )
+         AND EXISTS (
+           SELECT 1 FROM workout_sets
+           WHERE workout_sets.exercise_id = previous_exercise.id
+         )
+       ORDER BY previous_session.scheduled_at DESC, previous_session.created_at DESC
+       LIMIT 1`,
+      exerciseId,
+      profileId,
+      profileId,
+    );
+    if (!previous) return null;
+
+    const rows = await db.getAllAsync<SetRow>(
+      `SELECT ws.* FROM workout_sets ws
+       JOIN session_exercises se ON se.id = ws.exercise_id
+       JOIN sessions s ON s.id = se.session_id
+       WHERE ws.exercise_id = ? AND s.profile_id = ?
+       ORDER BY ws.position`,
+      previous.exercise_id,
+      profileId,
+    );
+    return {
+      sessionId: previous.session_id,
+      sessionName: previous.session_name,
+      scheduledAt: previous.scheduled_at,
+      exerciseId: previous.exercise_id,
+      exerciseName: previous.exercise_name,
+      exerciseType: previous.exercise_type,
+      sets: rows.map(mapSet),
+    };
+  },
+
   async get(db: SQLiteDatabase, profileId: string, id: string): Promise<WorkoutSet | null> {
     const row = await db.getFirstAsync<SetRow>(
       `SELECT ws.* FROM workout_sets ws
@@ -157,6 +243,11 @@ export const setRepository = {
     input: SetInput,
   ): Promise<WorkoutSet> {
     await assertCompatibleExercise(db, profileId, exerciseId, input);
+    const grouped = await db.getFirstAsync<{ superset_id: string }>(
+      'SELECT superset_id FROM superset_members WHERE exercise_id = ?',
+      exerciseId,
+    );
+    if (grouped) throw new DataConflictError('Log new sets from the guided superset round.');
     const next = await db.getFirstAsync<{ next_position: number }>(
       'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM workout_sets WHERE exercise_id = ?',
       exerciseId,
@@ -180,6 +271,91 @@ export const setRepository = {
     const created = row ? mapSet(row) : null;
     if (!created) throw new Error('Set creation failed.');
     return created;
+  },
+
+  async createForRoundEntry(
+    db: SQLiteDatabase,
+    profileId: string,
+    entryId: string,
+    input: SetInput,
+  ): Promise<{ workoutSet: WorkoutSet; supersetId: string; nextEntryId: string | null }> {
+    let created: WorkoutSet | null = null;
+    let supersetId = '';
+    await db.withExclusiveTransactionAsync(async (transaction) => {
+      const entry = await transaction.getFirstAsync<{
+        exercise_id: string;
+        round_id: string;
+        superset_id: string;
+        status: 'pending' | 'completed' | 'skipped';
+      }>(
+        `SELECT sre.exercise_id, sre.round_id, sr.superset_id, sre.status
+         FROM superset_round_entries sre
+         JOIN superset_rounds sr ON sr.id = sre.round_id
+         JOIN supersets ss ON ss.id = sr.superset_id
+         JOIN sessions s ON s.id = ss.session_id
+         WHERE sre.id = ? AND s.profile_id = ?`,
+        entryId,
+        profileId,
+      );
+      if (!entry) throw new Error('Round entry not found.');
+      if (entry.status === 'completed')
+        throw new DataConflictError('This exercise is already logged.');
+      supersetId = entry.superset_id;
+      await assertCompatibleExercise(transaction, profileId, entry.exercise_id, input);
+      const next = await transaction.getFirstAsync<{ next_position: number }>(
+        'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM workout_sets WHERE exercise_id = ?',
+        entry.exercise_id,
+      );
+      const id = randomUUID();
+      const now = Date.now();
+      const values = databaseValues(input);
+      await transaction.runAsync(
+        `INSERT INTO workout_sets
+         (id, exercise_id, position, set_kind, reps, input_weight, input_unit, weight_kg,
+          weight_lb, tut_seconds, duration_seconds, calories, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        entry.exercise_id,
+        next?.next_position ?? 0,
+        ...values,
+        now,
+        now,
+      );
+      await transaction.runAsync(
+        `UPDATE superset_round_entries
+         SET status = 'completed', workout_set_id = ?, updated_at = ? WHERE id = ?`,
+        id,
+        now,
+        entryId,
+      );
+      const pending = await transaction.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM superset_round_entries WHERE round_id = ? AND status = 'pending'",
+        entry.round_id,
+      );
+      if (!pending?.count) {
+        await transaction.runAsync(
+          `UPDATE superset_rounds SET status = 'completed', completed_at = ?, updated_at = ?
+           WHERE id = ?`,
+          now,
+          now,
+          entry.round_id,
+        );
+      }
+      const row = await transaction.getFirstAsync<SetRow>(
+        'SELECT * FROM workout_sets WHERE id = ?',
+        id,
+      );
+      created = row ? mapSet(row) : null;
+    });
+    if (!created) throw new Error('Set creation failed.');
+    const next = await db.getFirstAsync<{ id: string }>(
+      `SELECT sre.id FROM superset_round_entries sre
+       JOIN superset_rounds sr ON sr.id = sre.round_id
+       WHERE sr.superset_id = ? AND sre.status = 'pending'
+       ORDER BY sr.position, sre.position LIMIT 1`,
+      supersetId,
+    );
+    return { workoutSet: created, supersetId, nextEntryId: next?.id ?? null };
   },
 
   async update(db: SQLiteDatabase, profileId: string, id: string, input: SetInput): Promise<void> {
@@ -212,6 +388,25 @@ export const setRepository = {
   ): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
       await getOwnedExerciseType(transaction, profileId, exerciseId);
+      const entry = await transaction.getFirstAsync<{
+        id: string;
+        round_status: 'in_progress' | 'completed';
+      }>(
+        `SELECT sre.id, sr.status AS round_status FROM superset_round_entries sre
+         JOIN superset_rounds sr ON sr.id = sre.round_id
+         WHERE sre.workout_set_id = ? AND sre.exercise_id = ?`,
+        id,
+        exerciseId,
+      );
+      if (entry) {
+        await transaction.runAsync(
+          `UPDATE superset_round_entries SET status = ?, workout_set_id = NULL, updated_at = ?
+           WHERE id = ?`,
+          entry.round_status === 'completed' ? 'skipped' : 'pending',
+          Date.now(),
+          entry.id,
+        );
+      }
       const result = await transaction.runAsync(
         'DELETE FROM workout_sets WHERE id = ? AND exercise_id = ?',
         id,

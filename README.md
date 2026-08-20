@@ -4,6 +4,8 @@
 
 Fitness Trail is an offline-first iOS and Android strength-training and BMI journal built with Expo Router, React Native, TypeScript, and SQLite. It intentionally has no account, cloud API, or analytics dependency.
 
+Workout sessions support normal exercises and supersets of two or more ordered exercises. Superset rounds guide set logging in sequence, allow explicit skips that can be filled later, and resume unfinished rounds after navigation or app restarts. A superset can optionally be saved as a reusable template owned by the selected profile.
+
 ## Run locally
 
 Requirements: Node.js 22.23.1, Yarn 1.22.22, and the current Expo Go app. The Node and Yarn versions are pinned in `.nvmrc`, `package.json`, and the lockfile so local development and CI use the same toolchain.
@@ -47,7 +49,7 @@ maestro test e2e/create-workout.yaml
 
 ## Data model
 
-SQLite is initialized in `data/migrations.ts`. Versioned migrations enable foreign keys and WAL journaling. Sessions own ordered exercises, exercises own ordered sets, and cascade deletion removes dependent workout data while preserving the reusable exercise catalog. Exercises are categorized as free weight, machine, body weight, or cardio; sets store a validated strength, duration, or calorie payload. BMI measurements are stored independently as a dated history. Entered weight plus full-precision kg/lb values and canonical height in centimetres are persisted; BMI is derived from canonical values instead of being duplicated in storage.
+SQLite is initialized in `data/migrations.ts`. Versioned migrations enable foreign keys and WAL journaling. Sessions own ordered exercises, exercises own ordered sets, and optional superset records group contiguous exercises into ordered members and guided rounds. Round entries retain pending, completed, or skipped state and link completed entries to their workout set. Profile-owned superset templates store independent ordered exercise snapshots for reuse. Cascade deletion removes dependent workout data while preserving the reusable exercise catalog. Exercises are categorized as free weight, machine, body weight, or cardio; sets store a validated strength, duration, or calorie payload. BMI measurements are stored independently as a dated history. Entered weight plus full-precision kg/lb values and canonical height in centimetres are persisted; BMI is derived from canonical values instead of being duplicated in storage.
 
 The BMI tab is intended for adults aged 18 and older. BMI is presented as a screening measure rather than a diagnosis; age and gender are retained only as historical context and do not alter the adult calculation.
 

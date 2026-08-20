@@ -13,9 +13,10 @@ import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { useProfiles } from '@/data/profile-context';
 import { sessionRepository } from '@/data/session-repository';
+import { supersetRepository } from '@/data/superset-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
-import type { ExerciseSummary, Session } from '@/types/workout';
+import type { ExerciseSummary, Session, SessionWorkoutItem } from '@/types/workout';
 import { selectionFeedback, warningFeedback } from '@/utils/feedback';
 import { validateName } from '@/utils/names';
 import { track } from '@/utils/telemetry';
@@ -30,7 +31,7 @@ export default function SessionScreen(): React.ReactElement {
   const { version, notifyDataChanged } = useDataChange();
   const { selectedProfile, loading: profilesLoading } = useProfiles();
   const [session, setSession] = React.useState<Session | null>(null);
-  const [exercises, setExercises] = React.useState<ExerciseSummary[]>([]);
+  const [items, setItems] = React.useState<SessionWorkoutItem[]>([]);
   const [refreshing, setRefreshing] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState('');
@@ -41,16 +42,16 @@ export default function SessionScreen(): React.ReactElement {
       if (!profilesLoading) router.replace('/');
       return;
     }
-    const [nextSession, nextExercises] = await Promise.all([
+    const [nextSession, nextItems] = await Promise.all([
       sessionRepository.get(db, selectedProfile.id, sessionId),
-      exerciseRepository.listForSession(db, selectedProfile.id, sessionId),
+      supersetRepository.listSessionItems(db, selectedProfile.id, sessionId),
     ]);
     if (!nextSession) {
       router.replace('/');
       return;
     }
     setSession(nextSession);
-    setExercises(nextExercises);
+    setItems(nextItems);
   }, [db, profilesLoading, selectedProfile, sessionId]);
 
   useFocusEffect(
@@ -114,8 +115,8 @@ export default function SessionScreen(): React.ReactElement {
           text: 'Delete Exercise',
           style: 'destructive',
           onPress: () => {
-            const previous = exercises;
-            setExercises((current) => current.filter((item) => item.id !== exercise.id));
+            const previous = items;
+            setItems((current) => current.filter((item) => item.id !== exercise.id));
             void exerciseRepository
               .remove(db, selectedProfile!.id, exercise.id, sessionId)
               .then(() => {
@@ -124,7 +125,7 @@ export default function SessionScreen(): React.ReactElement {
                 track('exercise_deleted', { exerciseId: exercise.id });
               })
               .catch((error) => {
-                setExercises(previous);
+                setItems(previous);
                 Alert.alert(
                   'Exercise was not deleted',
                   error instanceof Error ? error.message : 'Please try again.',
@@ -154,34 +155,150 @@ export default function SessionScreen(): React.ReactElement {
     }
   };
 
-  const renderExercise = ({ item, drag, isActive }: RenderItemParams<ExerciseSummary>) => {
-    const setSummary = item.setCount
-      ? `${item.setCount} ${item.setCount === 1 ? 'set' : 'sets'}${item.lastSet ? ` · Last: ${formatSetSummary(item.lastSet)}` : ''}`
+  const confirmDeleteSuperset = (item: Extract<SessionWorkoutItem, { kind: 'superset' }>) => {
+    Alert.alert(
+      `Delete ${item.superset.name}?`,
+      'All member exercises and their sets will be permanently removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Superset',
+          style: 'destructive',
+          onPress: () => {
+            const previous = items;
+            setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+            void supersetRepository
+              .remove(db, selectedProfile!.id, item.id)
+              .then(() => {
+                warningFeedback();
+                notifyDataChanged();
+                track('superset_deleted', { supersetId: item.id });
+              })
+              .catch((error) => {
+                setItems(previous);
+                Alert.alert(
+                  'Superset was not deleted',
+                  error instanceof Error ? error.message : 'Please try again.',
+                );
+              });
+          },
+        },
+      ],
+    );
+  };
+
+  const renderExercise = ({ item, drag, isActive }: RenderItemParams<SessionWorkoutItem>) => {
+    if (item.kind === 'superset') {
+      const memberNames = item.superset.members
+        .map((member) => member.exercise.displayName)
+        .join(' → ');
+      const roundSummary = item.superset.hasPendingEntries
+        ? 'Round in progress'
+        : `${item.superset.completedRoundCount} completed ${item.superset.completedRoundCount === 1 ? 'round' : 'rounds'}`;
+      return (
+        <SwipeActionRow
+          onDelete={() => confirmDeleteSuperset(item)}
+          deleteLabel={`Delete ${item.superset.name}`}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${item.superset.name}, ${memberNames}, ${roundSummary}`}
+            accessibilityHint="Opens guided superset rounds."
+            onPress={() =>
+              router.push({
+                pathname: '/sessions/[sessionId]/supersets/[supersetId]',
+                params: { sessionId, supersetId: item.id },
+              })
+            }
+            style={{
+              backgroundColor: isActive ? theme.colors.accentSoft : theme.colors.surface,
+              borderWidth: 1,
+              borderColor: isActive ? theme.colors.accent : theme.colors.border,
+              borderRadius: 18,
+              borderCurve: 'continuous',
+              padding: 15,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.colors.accentSoft,
+              }}
+            >
+              <AppIcon name="link-variant" color={theme.colors.accent} size={22} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+              <Text
+                selectable
+                style={{ color: theme.colors.text, fontSize: 17, fontWeight: '800' }}
+              >
+                {item.superset.name}
+              </Text>
+              <Text selectable style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+                {memberNames}
+              </Text>
+              <Text
+                selectable
+                style={{
+                  color: item.superset.hasPendingEntries
+                    ? theme.colors.accent
+                    : theme.colors.textMuted,
+                  fontSize: 13,
+                  fontWeight: '700',
+                }}
+              >
+                {roundSummary}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityLabel={`Reorder ${item.superset.name}`}
+              accessibilityHint="Long press, then drag."
+              onLongPress={drag}
+              delayLongPress={120}
+              hitSlop={10}
+              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <AppIcon name="reorder-horizontal" color={theme.colors.textMuted} size={22} />
+            </Pressable>
+          </Pressable>
+        </SwipeActionRow>
+      );
+    }
+    const exercise = item.exercise;
+    const setSummary = exercise.setCount
+      ? `${exercise.setCount} ${exercise.setCount === 1 ? 'set' : 'sets'}${exercise.lastSet ? ` · Last: ${formatSetSummary(exercise.lastSet)}` : ''}`
       : 'No sets logged';
-    const summary = [exerciseTypeLabel(item.exerciseType), item.muscleGroupName, setSummary]
+    const summary = [exerciseTypeLabel(exercise.exerciseType), exercise.muscleGroupName, setSummary]
       .filter(Boolean)
       .join(' · ');
-    const editing = editingId === item.id;
+    const editing = editingId === exercise.id;
 
     return (
       <SwipeActionRow
-        onDelete={() => confirmDeleteExercise(item)}
-        deleteLabel={`Delete ${item.displayName}`}
+        onDelete={() => confirmDeleteExercise(exercise)}
+        deleteLabel={`Delete ${exercise.displayName}`}
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${item.displayName}, ${summary}`}
+          accessibilityLabel={`${exercise.displayName}, ${summary}`}
           accessibilityHint="Opens the set logger. Long press to rename."
           disabled={editing}
           onPress={() =>
             router.push({
               pathname: '/sessions/[sessionId]/exercises/[exerciseId]',
-              params: { sessionId, exerciseId: item.id },
+              params: { sessionId, exerciseId: exercise.id },
             })
           }
           onLongPress={() => {
-            setEditingId(item.id);
-            setEditingName(item.displayName);
+            setEditingId(exercise.id);
+            setEditingName(exercise.displayName);
             setRenameError(null);
           }}
           style={{
@@ -204,7 +321,7 @@ export default function SessionScreen(): React.ReactElement {
                   accessibilityLabel="Exercise name"
                   value={editingName}
                   onChangeText={setEditingName}
-                  onSubmitEditing={() => void saveRename(item)}
+                  onSubmitEditing={() => void saveRename(exercise)}
                   returnKeyType="done"
                   maxLength={80}
                   style={{
@@ -226,7 +343,7 @@ export default function SessionScreen(): React.ReactElement {
                   <Pressable onPress={() => setEditingId(null)} hitSlop={8}>
                     <Text style={{ color: theme.colors.textMuted, fontWeight: '700' }}>Cancel</Text>
                   </Pressable>
-                  <Pressable onPress={() => void saveRename(item)} hitSlop={8}>
+                  <Pressable onPress={() => void saveRename(exercise)} hitSlop={8}>
                     <Text style={{ color: theme.colors.accent, fontWeight: '800' }}>Save</Text>
                   </Pressable>
                 </View>
@@ -242,7 +359,7 @@ export default function SessionScreen(): React.ReactElement {
                     flexShrink: 1,
                   }}
                 >
-                  {item.displayName}
+                  {exercise.displayName}
                 </Text>
                 <Text
                   selectable
@@ -256,7 +373,7 @@ export default function SessionScreen(): React.ReactElement {
           {!editing ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Reorder ${item.displayName}`}
+              accessibilityLabel={`Reorder ${exercise.displayName}`}
               accessibilityHint="Long press, then drag."
               onLongPress={drag}
               delayLongPress={120}
@@ -291,14 +408,14 @@ export default function SessionScreen(): React.ReactElement {
         }}
       />
       <DraggableFlatList
-        data={exercises}
+        data={items}
         keyExtractor={(item) => item.id}
         renderItem={renderExercise}
         onDragEnd={({ data }) => {
-          const previous = exercises;
-          setExercises(data);
-          void exerciseRepository
-            .reorder(
+          const previous = items;
+          setItems(data);
+          void supersetRepository
+            .reorderSessionItems(
               db,
               selectedProfile!.id,
               sessionId,
@@ -309,7 +426,7 @@ export default function SessionScreen(): React.ReactElement {
               notifyDataChanged();
             })
             .catch((error) => {
-              setExercises(previous);
+              setItems(previous);
               Alert.alert(
                 'Order was not saved',
                 error instanceof Error ? error.message : 'Please try again.',
@@ -328,7 +445,7 @@ export default function SessionScreen(): React.ReactElement {
           paddingTop: horizontalPadding,
           paddingBottom: 116,
           gap: 12,
-          flexGrow: exercises.length ? undefined : 1,
+          flexGrow: items.length ? undefined : 1,
         }}
         ListHeaderComponent={
           session ? (
@@ -352,7 +469,7 @@ export default function SessionScreen(): React.ReactElement {
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               title="No exercises yet"
-              message="Tap Add Exercise to start building this session."
+              message="Add an exercise or create a superset to start building this session."
             />
           </View>
         }
@@ -374,13 +491,28 @@ export default function SessionScreen(): React.ReactElement {
           }}
         >
           <AppButton
-            label="Add Exercise"
+            label="Add Exercise or Superset"
             icon={{ name: 'plus' }}
             onPress={() =>
-              router.push({
-                pathname: '/sessions/[sessionId]/exercises/new',
-                params: { sessionId },
-              })
+              Alert.alert('Add to session', undefined, [
+                {
+                  text: 'Add Exercise',
+                  onPress: () =>
+                    router.push({
+                      pathname: '/sessions/[sessionId]/exercises/new',
+                      params: { sessionId },
+                    }),
+                },
+                {
+                  text: 'Create Superset',
+                  onPress: () =>
+                    router.push({
+                      pathname: '/sessions/[sessionId]/supersets/new',
+                      params: { sessionId },
+                    }),
+                },
+                { text: 'Cancel', style: 'cancel' },
+              ])
             }
             testID="add-exercise"
           />

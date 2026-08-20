@@ -22,13 +22,10 @@ export function SheetScaffold({
   const horizontalPadding = compact ? 14 : 20;
 
   React.useEffect(() => {
-    if (process.env.EXPO_OS !== 'android') return;
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () =>
-      setKeyboardVisible(true),
-    );
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () =>
-      setKeyboardVisible(false),
-    );
+    const showEvent = process.env.EXPO_OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = process.env.EXPO_OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
     return () => {
       showSubscription.remove();
       hideSubscription.remove();
@@ -37,7 +34,8 @@ export function SheetScaffold({
 
   return (
     <KeyboardAvoidingView
-      behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
+      behavior="height"
+      enabled={process.env.EXPO_OS === 'android'}
       collapsable={false}
       style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
