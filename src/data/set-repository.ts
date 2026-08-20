@@ -1,7 +1,14 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { ExerciseType, SetInput, SetKind, WeightUnit, WorkoutSet } from '@/types/workout';
+import type {
+  ExerciseType,
+  PreviousExerciseWorkout,
+  SetInput,
+  SetKind,
+  WeightUnit,
+  WorkoutSet,
+} from '@/types/workout';
 import { convertWeight, validateSetInput } from '@/utils/weight';
 
 interface SetRow {
@@ -19,6 +26,15 @@ interface SetRow {
   calories: number | null;
   created_at: number;
   updated_at: number;
+}
+
+interface PreviousWorkoutRow {
+  session_id: string;
+  session_name: string;
+  scheduled_at: number;
+  exercise_id: string;
+  exercise_name: string;
+  exercise_type: ExerciseType;
 }
 
 function mapSet(row: SetRow): WorkoutSet {
@@ -136,6 +152,75 @@ export const setRepository = {
       profileId,
     );
     return rows.map(mapSet);
+  },
+
+  async getPreviousWorkout(
+    db: SQLiteDatabase,
+    profileId: string,
+    exerciseId: string,
+  ): Promise<PreviousExerciseWorkout | null> {
+    const previous = await db.getFirstAsync<PreviousWorkoutRow>(
+      `WITH current_exercise AS (
+         SELECT se.id, se.session_id, se.catalog_id, se.normalized_name, se.exercise_type,
+                s.scheduled_at, s.created_at
+         FROM session_exercises se
+         JOIN sessions s ON s.id = se.session_id
+         WHERE se.id = ? AND s.profile_id = ?
+       )
+       SELECT previous_session.id AS session_id,
+              previous_session.name AS session_name,
+              previous_session.scheduled_at,
+              previous_exercise.id AS exercise_id,
+              previous_exercise.display_name AS exercise_name,
+              previous_exercise.exercise_type
+       FROM current_exercise current
+       JOIN session_exercises previous_exercise ON (
+         (current.catalog_id IS NOT NULL AND previous_exercise.catalog_id = current.catalog_id)
+         OR
+         ((current.catalog_id IS NULL OR previous_exercise.catalog_id IS NULL)
+           AND previous_exercise.normalized_name = current.normalized_name
+           AND previous_exercise.exercise_type = current.exercise_type)
+       )
+       JOIN sessions previous_session ON previous_session.id = previous_exercise.session_id
+       WHERE previous_session.profile_id = ?
+         AND previous_session.id <> current.session_id
+         AND (
+           previous_session.scheduled_at < current.scheduled_at
+           OR (
+             previous_session.scheduled_at = current.scheduled_at
+             AND previous_session.created_at < current.created_at
+           )
+         )
+         AND EXISTS (
+           SELECT 1 FROM workout_sets
+           WHERE workout_sets.exercise_id = previous_exercise.id
+         )
+       ORDER BY previous_session.scheduled_at DESC, previous_session.created_at DESC
+       LIMIT 1`,
+      exerciseId,
+      profileId,
+      profileId,
+    );
+    if (!previous) return null;
+
+    const rows = await db.getAllAsync<SetRow>(
+      `SELECT ws.* FROM workout_sets ws
+       JOIN session_exercises se ON se.id = ws.exercise_id
+       JOIN sessions s ON s.id = se.session_id
+       WHERE ws.exercise_id = ? AND s.profile_id = ?
+       ORDER BY ws.position`,
+      previous.exercise_id,
+      profileId,
+    );
+    return {
+      sessionId: previous.session_id,
+      sessionName: previous.session_name,
+      scheduledAt: previous.scheduled_at,
+      exerciseId: previous.exercise_id,
+      exerciseName: previous.exercise_name,
+      exerciseType: previous.exercise_type,
+      sets: rows.map(mapSet),
+    };
   },
 
   async get(db: SQLiteDatabase, profileId: string, id: string): Promise<WorkoutSet | null> {
