@@ -8,6 +8,7 @@ import {
   MIGRATION_V3,
   MIGRATION_V4,
   MIGRATION_V5,
+  MIGRATION_V6,
   SCHEMA_V1,
 } from '@/data/migrations';
 
@@ -479,5 +480,143 @@ describe('profile migration and ownership integrity', () => {
     `,
       ),
     ).toThrow();
+  });
+});
+
+describe('superset migration and relational integrity', () => {
+  let database: string;
+
+  beforeEach(() => {
+    database = path.join(
+      mkdtempSync(path.join(tmpdir(), 'fitness-trail-supersets-db-')),
+      'journal.db',
+    );
+    sqlite(
+      database,
+      `${SCHEMA_V1}\n${MIGRATION_V2}\n${MIGRATION_V3}\n${MIGRATION_V4}\n${MIGRATION_V5}\n${MIGRATION_V6}`,
+    );
+    sqlite(
+      database,
+      `
+      INSERT INTO profiles
+        (id, name, age_source, age_years, date_of_birth, gender, input_height_unit,
+         height_cm, photo_kind, photo_ref, created_at, updated_at)
+      VALUES ('p1', 'Alex', 'age', 30, NULL, 'prefer_not_to_say', 'cm', 175, 'none', NULL, 1, 1);
+      INSERT INTO sessions
+        (id, profile_id, name, scheduled_at, local_date, timezone_offset_minutes, created_at, updated_at)
+      VALUES ('s1', 'p1', 'Upper Body', 1, '2026-08-20', -330, 1, 1);
+      INSERT INTO exercise_catalog
+        (id, normalized_name, display_name, use_count, last_used_at, created_at, updated_at, exercise_type)
+      VALUES
+        ('c1', 'bench press', 'Bench Press', 1, 1, 1, 1, 'free_weight'),
+        ('c2', 'row', 'Row', 1, 1, 1, 1, 'machine'),
+        ('c3', 'push up', 'Push Up', 1, 1, 1, 1, 'body_weight');
+      INSERT INTO session_exercises
+        (id, session_id, catalog_id, display_name, normalized_name, exercise_type, position, created_at, updated_at)
+      VALUES
+        ('e1', 's1', 'c1', 'Bench Press', 'bench press', 'free_weight', 0, 1, 1),
+        ('e2', 's1', 'c2', 'Row', 'row', 'machine', 1, 1, 1),
+        ('e3', 's1', 'c3', 'Push Up', 'push up', 'body_weight', 2, 1, 1);
+    `,
+    );
+  });
+
+  test('creates profile templates, session groups, ordered members, rounds, and entries', () => {
+    expect(sqlite(database, 'PRAGMA user_version;')).toBe('6');
+    sqlite(
+      database,
+      `
+      INSERT INTO superset_templates VALUES ('t1', 'p1', 'Push Pull', 1, 1);
+      INSERT INTO superset_template_members VALUES
+        ('tm1', 't1', 'c1', 'Bench Press', 'bench press', NULL, 'free_weight', 0),
+        ('tm2', 't1', 'c2', 'Row', 'row', NULL, 'machine', 1);
+      INSERT INTO supersets VALUES ('ss1', 's1', 't1', 'Push Pull', 1, 1);
+      INSERT INTO superset_members VALUES ('ss1', 'e1', 0, 1), ('ss1', 'e2', 1, 1);
+      INSERT INTO superset_rounds VALUES ('r1', 'ss1', 0, 'in_progress', NULL, 1, 1);
+      INSERT INTO superset_round_entries VALUES
+        ('re1', 'r1', 'e1', 0, 'pending', NULL, 1, 1),
+        ('re2', 'r1', 'e2', 1, 'skipped', NULL, 1, 1);
+    `,
+    );
+    expect(
+      sqlite(
+        database,
+        `SELECT ss.name || ':' || COUNT(sm.exercise_id)
+         FROM supersets ss JOIN superset_members sm ON sm.superset_id = ss.id
+         GROUP BY ss.id;`,
+      ),
+    ).toBe('Push Pull:2');
+    expect(
+      sqlite(
+        database,
+        "SELECT status FROM superset_round_entries WHERE round_id = 'r1' ORDER BY position;",
+      ),
+    ).toBe('pending\nskipped');
+  });
+
+  test('enforces single-group membership and valid completed entry links', () => {
+    sqlite(
+      database,
+      `
+      INSERT INTO supersets VALUES ('ss1', 's1', NULL, 'First', 1, 1);
+      INSERT INTO supersets VALUES ('ss2', 's1', NULL, 'Second', 1, 1);
+      INSERT INTO superset_members VALUES ('ss1', 'e1', 0, 1), ('ss1', 'e2', 1, 1);
+      INSERT INTO superset_rounds VALUES ('r1', 'ss1', 0, 'in_progress', NULL, 1, 1);
+    `,
+    );
+    expect(() =>
+      sqlite(database, "INSERT INTO superset_members VALUES ('ss2', 'e1', 0, 1);"),
+    ).toThrow();
+    expect(() =>
+      sqlite(
+        database,
+        "INSERT INTO superset_round_entries VALUES ('bad', 'r1', 'e1', 0, 'completed', NULL, 1, 1);",
+      ),
+    ).toThrow();
+  });
+
+  test('dissolving preserves exercises and sets while profile deletion removes templates', () => {
+    sqlite(
+      database,
+      `
+      INSERT INTO superset_templates VALUES ('t1', 'p1', 'Push Pull', 1, 1);
+      INSERT INTO supersets VALUES ('ss1', 's1', 't1', 'Push Pull', 1, 1);
+      INSERT INTO superset_members VALUES ('ss1', 'e1', 0, 1), ('ss1', 'e2', 1, 1);
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, reps, input_weight, input_unit,
+         weight_kg, weight_lb, tut_seconds, created_at, updated_at)
+      VALUES ('w1', 'e1', 0, 'strength', 8, 50, 'kg', 50, 110.231, 20, 1, 1);
+      DELETE FROM supersets WHERE id = 'ss1';
+    `,
+    );
+    expect(sqlite(database, 'SELECT COUNT(*) FROM session_exercises;')).toBe('3');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM workout_sets;')).toBe('1');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM superset_templates;')).toBe('1');
+    sqlite(database, "DELETE FROM profiles WHERE id = 'p1';");
+    expect(sqlite(database, 'SELECT COUNT(*) FROM superset_templates;')).toBe('0');
+  });
+
+  test('cascades completed rounds when their session is deleted', () => {
+    sqlite(
+      database,
+      `
+      INSERT INTO supersets VALUES ('ss1', 's1', NULL, 'Push Pull', 1, 1);
+      INSERT INTO superset_members VALUES ('ss1', 'e1', 0, 1), ('ss1', 'e2', 1, 1);
+      INSERT INTO workout_sets
+        (id, exercise_id, position, set_kind, reps, input_weight, input_unit,
+         weight_kg, weight_lb, tut_seconds, created_at, updated_at)
+      VALUES
+        ('w1', 'e1', 0, 'strength', 8, 50, 'kg', 50, 110.231, 20, 1, 1),
+        ('w2', 'e2', 0, 'strength', 10, 40, 'kg', 40, 88.1848, 20, 1, 1);
+      INSERT INTO superset_rounds VALUES ('r1', 'ss1', 0, 'completed', 2, 1, 2);
+      INSERT INTO superset_round_entries VALUES
+        ('re1', 'r1', 'e1', 0, 'completed', 'w1', 1, 1),
+        ('re2', 'r1', 'e2', 1, 'completed', 'w2', 1, 1);
+      DELETE FROM sessions WHERE id = 's1';
+    `,
+    );
+    expect(sqlite(database, 'SELECT COUNT(*) FROM supersets;')).toBe('0');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM superset_round_entries;')).toBe('0');
+    expect(sqlite(database, 'SELECT COUNT(*) FROM workout_sets;')).toBe('0');
   });
 });

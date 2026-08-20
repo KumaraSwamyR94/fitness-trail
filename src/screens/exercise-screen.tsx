@@ -12,6 +12,7 @@ import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
 import { useProfiles } from '@/data/profile-context';
 import { setRepository } from '@/data/set-repository';
+import { supersetRepository } from '@/data/superset-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
 import type { PreviousExerciseWorkout, SessionExercise, WorkoutSet } from '@/types/workout';
@@ -36,16 +37,18 @@ export default function ExerciseScreen(): React.ReactElement {
     null,
   );
   const [refreshing, setRefreshing] = React.useState(false);
+  const [supersetId, setSupersetId] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     if (!selectedProfile) {
       if (!profilesLoading) router.replace('/');
       return;
     }
-    const [nextExercise, nextSets, nextPreviousWorkout] = await Promise.all([
+    const [nextExercise, nextSets, nextPreviousWorkout, group] = await Promise.all([
       exerciseRepository.get(db, selectedProfile.id, exerciseId),
       setRepository.listForExercise(db, selectedProfile.id, exerciseId),
       setRepository.getPreviousWorkout(db, selectedProfile.id, exerciseId),
+      supersetRepository.findForExercise(db, selectedProfile.id, exerciseId),
     ]);
     if (!nextExercise) {
       router.replace('/');
@@ -54,6 +57,7 @@ export default function ExerciseScreen(): React.ReactElement {
     setExercise(nextExercise);
     setSets(nextSets);
     setPreviousWorkout(nextPreviousWorkout);
+    setSupersetId(group?.id ?? null);
   }, [db, exerciseId, profilesLoading, selectedProfile]);
 
   useFocusEffect(
@@ -193,13 +197,18 @@ export default function ExerciseScreen(): React.ReactElement {
           }}
         >
           <AppButton
-            label="Add Set"
-            icon={{ name: 'plus' }}
+            label={supersetId ? 'Open Superset' : 'Add Set'}
+            icon={{ name: supersetId ? 'link-variant' : 'plus' }}
             onPress={() =>
-              router.push({
-                pathname: '/sessions/[sessionId]/exercises/[exerciseId]/sets/new',
-                params: { sessionId, exerciseId },
-              })
+              supersetId
+                ? router.push({
+                    pathname: '/sessions/[sessionId]/supersets/[supersetId]',
+                    params: { sessionId, supersetId },
+                  })
+                : router.push({
+                    pathname: '/sessions/[sessionId]/exercises/[exerciseId]/sets/new',
+                    params: { sessionId, exerciseId },
+                  })
             }
             testID="add-set"
           />

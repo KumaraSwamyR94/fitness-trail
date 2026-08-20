@@ -16,6 +16,9 @@ interface SetFormProps {
   submitLabel: string;
   submitting: boolean;
   onSubmit: (input: SetInput) => Promise<void>;
+  secondaryAction?: { label: string; onPress: () => void; disabled?: boolean };
+  heading?: string;
+  description?: string;
 }
 
 interface FieldErrors {
@@ -36,6 +39,9 @@ export function SetForm({
   submitLabel,
   submitting,
   onSubmit,
+  secondaryAction,
+  heading,
+  description,
 }: SetFormProps): React.ReactElement {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
@@ -305,22 +311,34 @@ export function SetForm({
     <SheetScaffold
       testID="set-form"
       footer={
-        <AppButton
-          label={submitLabel}
-          loading={submitting}
-          onPress={() => void save()}
-          testID="save-set"
-        />
+        <View style={{ gap: 10 }}>
+          <AppButton
+            label={submitLabel}
+            loading={submitting}
+            onPress={() => void save()}
+            testID="save-set"
+          />
+          {secondaryAction ? (
+            <AppButton
+              label={secondaryAction.label}
+              variant="secondary"
+              onPress={secondaryAction.onPress}
+              disabled={secondaryAction.disabled || submitting}
+              testID="secondary-set-action"
+            />
+          ) : null}
+        </View>
       }
     >
       <View style={{ gap: 5 }}>
         <Text selectable style={{ color: theme.colors.text, fontSize: 24, fontWeight: '800' }}>
-          {exerciseType === 'cardio' ? 'Log your cardio set' : 'Log your working set'}
+          {heading ?? (exerciseType === 'cardio' ? 'Log your cardio set' : 'Log your working set')}
         </Text>
         <Text selectable style={{ color: theme.colors.textMuted, fontSize: 15, lineHeight: 21 }}>
-          {exerciseType === 'cardio'
-            ? 'Record either elapsed duration or calories burned.'
-            : 'Record repetitions, load, and optional time under tension.'}
+          {description ??
+            (exerciseType === 'cardio'
+              ? 'Record either elapsed duration or calories burned.'
+              : 'Record repetitions, load, and optional time under tension.')}
         </Text>
       </View>
       {exerciseType === 'cardio' ? cardioFields : strengthFields}

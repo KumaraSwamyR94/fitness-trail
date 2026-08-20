@@ -3,6 +3,7 @@ import React from 'react';
 
 import { exerciseRepository } from '@/data/exercise-repository';
 import { setRepository } from '@/data/set-repository';
+import { supersetRepository } from '@/data/superset-repository';
 import ExerciseScreen from '@/screens/exercise-screen';
 import type { PreviousExerciseWorkout, SessionExercise, WorkoutSet } from '@/types/workout';
 
@@ -61,6 +62,10 @@ jest.mock('@/data/set-repository', () => ({
   },
 }));
 
+jest.mock('@/data/superset-repository', () => ({
+  supersetRepository: { findForExercise: jest.fn().mockResolvedValue(null) },
+}));
+
 const exercise: SessionExercise = {
   id: 'current-exercise',
   sessionId: 'current-session',
@@ -104,6 +109,7 @@ describe('ExerciseScreen workout history', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(exerciseRepository.get).mockResolvedValue(exercise);
+    jest.mocked(supersetRepository.findForExercise).mockResolvedValue(null);
   });
 
   test('keeps the existing empty state when no previous workout exists', async () => {
@@ -133,5 +139,18 @@ describe('ExerciseScreen workout history', () => {
     expect(currentSection.parent).toBe(previousSection.parent);
     const siblings = currentSection.parent?.children ?? [];
     expect(siblings.indexOf(currentSection)).toBeLessThan(siblings.indexOf(previousSection));
+  });
+
+  test('routes grouped exercises back to guided superset logging', async () => {
+    jest.mocked(setRepository.listForExercise).mockResolvedValue([]);
+    jest.mocked(setRepository.getPreviousWorkout).mockResolvedValue(null);
+    jest
+      .mocked(supersetRepository.findForExercise)
+      .mockResolvedValue({ id: 'superset-1', sessionId: 'current-session' });
+
+    const view = await render(<ExerciseScreen />);
+
+    expect(await view.findByText('Open Superset')).toBeTruthy();
+    expect(view.queryByText('Add Set')).toBeNull();
   });
 });
