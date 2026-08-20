@@ -9,6 +9,7 @@ import { AppIcon, type AppIconProps } from '@/components/app-icon';
 import { FormField } from '@/components/form-field';
 import { useDataChange } from '@/data/data-change-context';
 import { exerciseRepository } from '@/data/exercise-repository';
+import { muscleGroupRepository } from '@/data/muscle-group-repository';
 import { useProfiles } from '@/data/profile-context';
 import { supersetRepository } from '@/data/superset-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
@@ -17,6 +18,7 @@ import type {
   ExerciseCatalogEntry,
   ExerciseSummary,
   ExerciseType,
+  MuscleGroupCatalogEntry,
   SupersetMemberInput,
   SupersetTemplate,
 } from '@/types/workout';
@@ -62,6 +64,9 @@ export default function CreateSupersetScreen(): React.ReactElement {
   const [query, setQuery] = React.useState('');
   const [suggestions, setSuggestions] = React.useState<ExerciseCatalogEntry[]>([]);
   const [muscleGroup, setMuscleGroup] = React.useState('');
+  const [muscleGroupSuggestions, setMuscleGroupSuggestions] = React.useState<
+    MuscleGroupCatalogEntry[]
+  >([]);
   const [exerciseType, setExerciseType] = React.useState<ExerciseType>('free_weight');
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
@@ -122,7 +127,23 @@ export default function CreateSupersetScreen(): React.ReactElement {
     };
   }, [db, query]);
 
+  React.useEffect(() => {
+    let active = true;
+    const timeout = setTimeout(() => {
+      void muscleGroupRepository.searchCatalog(db, muscleGroup).then((rows) => {
+        if (active) setMuscleGroupSuggestions(rows);
+      });
+    }, 80);
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [db, muscleGroup]);
+
   const selectedNames = new Set(members.map((member) => normalizeName(member.displayName)));
+  const exactMuscleGroup = muscleGroupSuggestions.find(
+    (suggestion) => suggestion.normalizedName === normalizeName(muscleGroup),
+  );
 
   const toggleExisting = (exercise: ExerciseSummary) => {
     setError(null);
@@ -166,7 +187,7 @@ export default function CreateSupersetScreen(): React.ReactElement {
         : {
             catalogId: exact?.id ?? null,
             displayName: exact?.displayName ?? query,
-            muscleGroupName: exact?.muscleGroupName ?? muscleGroup,
+            muscleGroupName: exactMuscleGroup?.displayName ?? exact?.muscleGroupName ?? muscleGroup,
             exerciseType: exact?.exerciseType ?? exerciseType,
           },
     ]);
@@ -483,6 +504,62 @@ export default function CreateSupersetScreen(): React.ReactElement {
             placeholder="e.g. Chest"
             testID="superset-muscle-group"
           />
+          <Text selectable style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
+            {muscleGroup.trim() ? 'Matching muscle groups' : 'Major muscle groups'}
+          </Text>
+          {muscleGroupSuggestions.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {muscleGroupSuggestions.map((suggestion) => {
+                const selected = suggestion.normalizedName === normalizeName(muscleGroup);
+                return (
+                  <Pressable
+                    key={suggestion.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select ${suggestion.displayName}`}
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      setMuscleGroup(suggestion.displayName);
+                      setError(null);
+                    }}
+                    style={({ pressed }) => ({
+                      minHeight: 42,
+                      justifyContent: 'center',
+                      paddingHorizontal: 14,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: selected ? theme.colors.accent : theme.colors.border,
+                      backgroundColor: selected
+                        ? theme.colors.accentSoft
+                        : pressed
+                          ? theme.colors.surfaceMuted
+                          : theme.colors.surface,
+                    })}
+                  >
+                    <Text
+                      selectable
+                      style={{
+                        color: selected ? theme.colors.accent : theme.colors.text,
+                        fontSize: 14,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {selected ? '✓ ' : ''}
+                      {suggestion.displayName}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text selectable style={{ color: theme.colors.textMuted }}>
+              No matching muscle group yet.
+            </Text>
+          )}
+          {muscleGroup.trim() && !exactMuscleGroup ? (
+            <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
+              “{muscleGroup.trim()}” will be saved as a reusable muscle group.
+            </Text>
+          ) : null}
           <AppButton
             label="Add to Superset"
             variant="secondary"

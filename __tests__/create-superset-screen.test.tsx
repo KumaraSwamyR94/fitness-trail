@@ -2,6 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import { exerciseRepository } from '@/data/exercise-repository';
+import { muscleGroupRepository } from '@/data/muscle-group-repository';
 import { supersetRepository } from '@/data/superset-repository';
 import CreateSupersetScreen from '@/screens/create-superset-screen';
 import type { ExerciseSummary, SupersetTemplate } from '@/types/workout';
@@ -33,6 +34,9 @@ jest.mock('@/data/profile-context', () => ({
 }));
 jest.mock('@/data/exercise-repository', () => ({
   exerciseRepository: { searchCatalog: jest.fn() },
+}));
+jest.mock('@/data/muscle-group-repository', () => ({
+  muscleGroupRepository: { searchCatalog: jest.fn() },
 }));
 jest.mock('@/data/superset-repository', () => ({
   supersetRepository: {
@@ -76,6 +80,24 @@ describe('CreateSupersetScreen', () => {
     jest.mocked(supersetRepository.listUngroupedForSession).mockResolvedValue(available);
     jest.mocked(supersetRepository.listTemplates).mockResolvedValue([]);
     jest.mocked(exerciseRepository.searchCatalog).mockResolvedValue([]);
+    jest.mocked(muscleGroupRepository.searchCatalog).mockResolvedValue([
+      {
+        id: 'muscle-chest',
+        normalizedName: 'chest',
+        displayName: 'Chest',
+        isPredefined: true,
+        useCount: 0,
+        lastUsedAt: 0,
+      },
+      {
+        id: 'muscle-back',
+        normalizedName: 'back',
+        displayName: 'Back',
+        isPredefined: true,
+        useCount: 0,
+        lastUsedAt: 0,
+      },
+    ]);
     jest.mocked(supersetRepository.create).mockResolvedValue('superset-1');
   });
 
@@ -135,6 +157,21 @@ describe('CreateSupersetScreen', () => {
           templateId: 'template-1',
           saveAsTemplate: false,
         }),
+      ),
+    );
+  });
+
+  test('shows and selects reusable muscle-group suggestions for a new member', async () => {
+    const view = await render(<CreateSupersetScreen />);
+
+    expect(await view.findByText('Major muscle groups')).toBeTruthy();
+    await fireEvent.press(await view.findByLabelText('Select Chest'));
+
+    expect(view.getByTestId('superset-muscle-group')).toHaveProp('value', 'Chest');
+    await waitFor(() =>
+      expect(muscleGroupRepository.searchCatalog).toHaveBeenLastCalledWith(
+        expect.anything(),
+        'Chest',
       ),
     );
   });
