@@ -87,6 +87,17 @@ export interface CaloriesWorkoutSet extends WorkoutSetBase {
 }
 
 export type WorkoutSet = StrengthWorkoutSet | DurationWorkoutSet | CaloriesWorkoutSet;
+
+export interface PreviousExerciseWorkout {
+  sessionId: string;
+  sessionName: string;
+  scheduledAt: number;
+  exerciseId: string;
+  exerciseName: string;
+  exerciseType: ExerciseType;
+  sets: WorkoutSet[];
+}
+
 type WorkoutSetMetadata = 'id' | 'exerciseId' | 'position' | 'createdAt' | 'updatedAt';
 export type WorkoutSetSummary =
   | Omit<StrengthWorkoutSet, WorkoutSetMetadata>
