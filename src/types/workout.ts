@@ -1,6 +1,8 @@
 export type WeightUnit = 'kg' | 'lb';
 export type ExerciseType = 'free_weight' | 'machine' | 'body_weight' | 'cardio';
 export type SetKind = 'strength' | 'duration' | 'calories';
+export type SupersetRoundStatus = 'in_progress' | 'completed';
+export type SupersetRoundEntryStatus = 'pending' | 'completed' | 'skipped';
 
 export interface Session {
   id: string;
@@ -55,6 +57,91 @@ export interface SessionExercise {
 export interface ExerciseSummary extends SessionExercise {
   setCount: number;
   lastSet: WorkoutSetSummary | null;
+}
+
+export interface SupersetMember {
+  supersetId: string;
+  exercise: ExerciseSummary;
+  position: number;
+}
+
+export interface Superset {
+  id: string;
+  sessionId: string;
+  templateId: string | null;
+  name: string;
+  members: SupersetMember[];
+  completedRoundCount: number;
+  hasPendingEntries: boolean;
+  membershipLocked: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SupersetRoundEntry {
+  id: string;
+  roundId: string;
+  exercise: SessionExercise;
+  position: number;
+  status: SupersetRoundEntryStatus;
+  workoutSet: WorkoutSet | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SupersetRound {
+  id: string;
+  supersetId: string;
+  position: number;
+  status: SupersetRoundStatus;
+  entries: SupersetRoundEntry[];
+  createdAt: number;
+  updatedAt: number;
+  completedAt: number | null;
+}
+
+export interface SupersetDetails extends Superset {
+  rounds: SupersetRound[];
+}
+
+export interface SupersetTemplateMember {
+  id: string;
+  templateId: string;
+  catalogId: string | null;
+  displayName: string;
+  normalizedName: string;
+  muscleGroupId: string | null;
+  muscleGroupName: string | null;
+  exerciseType: ExerciseType;
+  position: number;
+}
+
+export interface SupersetTemplate {
+  id: string;
+  profileId: string;
+  name: string;
+  members: SupersetTemplateMember[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type SessionWorkoutItem =
+  | { kind: 'exercise'; id: string; exercise: ExerciseSummary }
+  | { kind: 'superset'; id: string; superset: Superset };
+
+export interface SupersetMemberInput {
+  existingExerciseId?: string;
+  catalogId?: string | null;
+  displayName: string;
+  muscleGroupName: string;
+  exerciseType: ExerciseType;
+}
+
+export interface SupersetInput {
+  name?: string;
+  members: SupersetMemberInput[];
+  saveAsTemplate?: boolean;
+  templateId?: string | null;
 }
 
 interface WorkoutSetBase {

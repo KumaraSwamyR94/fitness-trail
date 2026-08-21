@@ -37,6 +37,22 @@ export default function WorkoutsLayout(): React.ReactElement {
         options={{ ...sheetOptions, title: 'Add Exercise', sheetAllowedDetents: [0.8, 1] }}
       />
       <Stack.Screen
+        name="sessions/[sessionId]/supersets/new"
+        options={{ title: 'Create Superset' }}
+      />
+      <Stack.Screen
+        name="sessions/[sessionId]/supersets/[supersetId]/index"
+        options={{ title: 'Superset' }}
+      />
+      <Stack.Screen
+        name="sessions/[sessionId]/supersets/[supersetId]/edit"
+        options={{ title: 'Edit Superset' }}
+      />
+      <Stack.Screen
+        name="sessions/[sessionId]/supersets/[supersetId]/entries/[entryId]"
+        options={{ ...sheetOptions, title: 'Log Superset Set' }}
+      />
+      <Stack.Screen
         name="sessions/[sessionId]/exercises/[exerciseId]/index"
         options={{ title: 'Exercise' }}
       />

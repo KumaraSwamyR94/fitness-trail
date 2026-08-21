@@ -113,3 +113,30 @@ appId: com.uniquedev.fitnesstrail
 - tapOn: '.* Session'
 - tapOn: Barbell Squat
 - assertVisible: '220.46'
+- back
+- tapOn:
+    id: add-exercise
+- tapOn: Create Superset
+- assertVisible: Create Superset
+- tapOn: Barbell Squat
+- tapOn: Push Up
+- tapOn: Running
+- tapOn:
+    id: create-superset
+- assertVisible: Superset 1
+- assertVisible: Round 2
+- tapOn:
+    id: start-superset-round
+- assertVisible: Barbell Squat
+- tapOn: Save & Continue
+- assertVisible: Push Up
+- tapOn: Skip This Exercise
+- assertVisible: Complete
+- stopApp
+- launchApp
+- tapOn: '.* Session'
+- tapOn: Superset 1
+- assertVisible: Skipped · Tap to fill
+- tapOn: Skipped · Tap to fill
+- tapOn: Fill Skipped Set
+- assertVisible: Round 2

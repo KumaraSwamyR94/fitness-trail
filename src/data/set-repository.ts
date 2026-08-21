@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { DataConflictError } from '@/data/errors';
 import type {
   ExerciseType,
   PreviousExerciseWorkout,
@@ -242,6 +243,11 @@ export const setRepository = {
     input: SetInput,
   ): Promise<WorkoutSet> {
     await assertCompatibleExercise(db, profileId, exerciseId, input);
+    const grouped = await db.getFirstAsync<{ superset_id: string }>(
+      'SELECT superset_id FROM superset_members WHERE exercise_id = ?',
+      exerciseId,
+    );
+    if (grouped) throw new DataConflictError('Log new sets from the guided superset round.');
     const next = await db.getFirstAsync<{ next_position: number }>(
       'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM workout_sets WHERE exercise_id = ?',
       exerciseId,
@@ -265,6 +271,91 @@ export const setRepository = {
     const created = row ? mapSet(row) : null;
     if (!created) throw new Error('Set creation failed.');
     return created;
+  },
+
+  async createForRoundEntry(
+    db: SQLiteDatabase,
+    profileId: string,
+    entryId: string,
+    input: SetInput,
+  ): Promise<{ workoutSet: WorkoutSet; supersetId: string; nextEntryId: string | null }> {
+    let created: WorkoutSet | null = null;
+    let supersetId = '';
+    await db.withExclusiveTransactionAsync(async (transaction) => {
+      const entry = await transaction.getFirstAsync<{
+        exercise_id: string;
+        round_id: string;
+        superset_id: string;
+        status: 'pending' | 'completed' | 'skipped';
+      }>(
+        `SELECT sre.exercise_id, sre.round_id, sr.superset_id, sre.status
+         FROM superset_round_entries sre
+         JOIN superset_rounds sr ON sr.id = sre.round_id
+         JOIN supersets ss ON ss.id = sr.superset_id
+         JOIN sessions s ON s.id = ss.session_id
+         WHERE sre.id = ? AND s.profile_id = ?`,
+        entryId,
+        profileId,
+      );
+      if (!entry) throw new Error('Round entry not found.');
+      if (entry.status === 'completed')
+        throw new DataConflictError('This exercise is already logged.');
+      supersetId = entry.superset_id;
+      await assertCompatibleExercise(transaction, profileId, entry.exercise_id, input);
+      const next = await transaction.getFirstAsync<{ next_position: number }>(
+        'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM workout_sets WHERE exercise_id = ?',
+        entry.exercise_id,
+      );
+      const id = randomUUID();
+      const now = Date.now();
+      const values = databaseValues(input);
+      await transaction.runAsync(
+        `INSERT INTO workout_sets
+         (id, exercise_id, position, set_kind, reps, input_weight, input_unit, weight_kg,
+          weight_lb, tut_seconds, duration_seconds, calories, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        entry.exercise_id,
+        next?.next_position ?? 0,
+        ...values,
+        now,
+        now,
+      );
+      await transaction.runAsync(
+        `UPDATE superset_round_entries
+         SET status = 'completed', workout_set_id = ?, updated_at = ? WHERE id = ?`,
+        id,
+        now,
+        entryId,
+      );
+      const pending = await transaction.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM superset_round_entries WHERE round_id = ? AND status = 'pending'",
+        entry.round_id,
+      );
+      if (!pending?.count) {
+        await transaction.runAsync(
+          `UPDATE superset_rounds SET status = 'completed', completed_at = ?, updated_at = ?
+           WHERE id = ?`,
+          now,
+          now,
+          entry.round_id,
+        );
+      }
+      const row = await transaction.getFirstAsync<SetRow>(
+        'SELECT * FROM workout_sets WHERE id = ?',
+        id,
+      );
+      created = row ? mapSet(row) : null;
+    });
+    if (!created) throw new Error('Set creation failed.');
+    const next = await db.getFirstAsync<{ id: string }>(
+      `SELECT sre.id FROM superset_round_entries sre
+       JOIN superset_rounds sr ON sr.id = sre.round_id
+       WHERE sr.superset_id = ? AND sre.status = 'pending'
+       ORDER BY sr.position, sre.position LIMIT 1`,
+      supersetId,
+    );
+    return { workoutSet: created, supersetId, nextEntryId: next?.id ?? null };
   },
 
   async update(db: SQLiteDatabase, profileId: string, id: string, input: SetInput): Promise<void> {
@@ -297,6 +388,25 @@ export const setRepository = {
   ): Promise<void> {
     await db.withExclusiveTransactionAsync(async (transaction) => {
       await getOwnedExerciseType(transaction, profileId, exerciseId);
+      const entry = await transaction.getFirstAsync<{
+        id: string;
+        round_status: 'in_progress' | 'completed';
+      }>(
+        `SELECT sre.id, sr.status AS round_status FROM superset_round_entries sre
+         JOIN superset_rounds sr ON sr.id = sre.round_id
+         WHERE sre.workout_set_id = ? AND sre.exercise_id = ?`,
+        id,
+        exerciseId,
+      );
+      if (entry) {
+        await transaction.runAsync(
+          `UPDATE superset_round_entries SET status = ?, workout_set_id = NULL, updated_at = ?
+           WHERE id = ?`,
+          entry.round_status === 'completed' ? 'skipped' : 'pending',
+          Date.now(),
+          entry.id,
+        );
+      }
       const result = await transaction.runAsync(
         'DELETE FROM workout_sets WHERE id = ? AND exercise_id = ?',
         id,

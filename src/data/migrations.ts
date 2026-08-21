@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 export const SCHEMA_V1 = `
   CREATE TABLE sessions (
@@ -221,6 +221,85 @@ export const MIGRATION_V5 = `
   PRAGMA user_version = 5;
 `;
 
+export const MIGRATION_V6 = `
+  CREATE TABLE superset_templates (
+    id TEXT PRIMARY KEY NOT NULL,
+    profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 80),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE superset_template_members (
+    id TEXT PRIMARY KEY NOT NULL,
+    template_id TEXT NOT NULL REFERENCES superset_templates(id) ON DELETE CASCADE,
+    catalog_id TEXT REFERENCES exercise_catalog(id) ON DELETE SET NULL,
+    display_name TEXT NOT NULL CHECK(length(display_name) BETWEEN 1 AND 80),
+    normalized_name TEXT NOT NULL,
+    muscle_group_id TEXT REFERENCES muscle_group_catalog(id) ON DELETE SET NULL,
+    exercise_type TEXT NOT NULL CHECK(exercise_type IN ('free_weight', 'machine', 'body_weight', 'cardio')),
+    position INTEGER NOT NULL CHECK(position >= 0),
+    UNIQUE(template_id, normalized_name),
+    UNIQUE(template_id, position)
+  );
+
+  CREATE TABLE supersets (
+    id TEXT PRIMARY KEY NOT NULL,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    template_id TEXT REFERENCES superset_templates(id) ON DELETE SET NULL,
+    name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 80),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE superset_members (
+    superset_id TEXT NOT NULL REFERENCES supersets(id) ON DELETE CASCADE,
+    exercise_id TEXT NOT NULL UNIQUE REFERENCES session_exercises(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK(position >= 0),
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY(superset_id, exercise_id),
+    UNIQUE(superset_id, position)
+  );
+
+  CREATE TABLE superset_rounds (
+    id TEXT PRIMARY KEY NOT NULL,
+    superset_id TEXT NOT NULL REFERENCES supersets(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK(position >= 0),
+    status TEXT NOT NULL CHECK(status IN ('in_progress', 'completed')),
+    completed_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(superset_id, position),
+    CHECK((status = 'completed' AND completed_at IS NOT NULL)
+      OR (status = 'in_progress' AND completed_at IS NULL))
+  );
+
+  CREATE TABLE superset_round_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    round_id TEXT NOT NULL REFERENCES superset_rounds(id) ON DELETE CASCADE,
+    exercise_id TEXT NOT NULL REFERENCES session_exercises(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK(position >= 0),
+    status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'skipped')),
+    workout_set_id TEXT REFERENCES workout_sets(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(round_id, exercise_id),
+    UNIQUE(round_id, position),
+    CHECK((status = 'completed' AND workout_set_id IS NOT NULL)
+      OR (status IN ('pending', 'skipped') AND workout_set_id IS NULL))
+  );
+
+  CREATE UNIQUE INDEX superset_round_entries_set_idx
+    ON superset_round_entries(workout_set_id) WHERE workout_set_id IS NOT NULL;
+  CREATE INDEX superset_templates_profile_idx
+    ON superset_templates(profile_id, updated_at DESC);
+  CREATE INDEX supersets_session_idx ON supersets(session_id, created_at);
+  CREATE INDEX superset_members_order_idx ON superset_members(superset_id, position);
+  CREATE INDEX superset_rounds_order_idx ON superset_rounds(superset_id, position);
+  CREATE INDEX superset_round_entries_order_idx ON superset_round_entries(round_id, position);
+  PRAGMA user_version = 6;
+`;
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
@@ -247,6 +326,10 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
     }
     if (version < 5) {
       await transaction.execAsync(MIGRATION_V5);
+      version = 5;
+    }
+    if (version < 6) {
+      await transaction.execAsync(MIGRATION_V6);
     }
   });
 }
