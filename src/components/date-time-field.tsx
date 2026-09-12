@@ -12,6 +12,7 @@ interface DateTimeFieldProps {
   label?: string;
   maximumDate?: Date;
   error?: string | null;
+  dateOnly?: boolean;
 }
 
 export function DateTimeField({
@@ -20,6 +21,7 @@ export function DateTimeField({
   label = 'Date and time',
   maximumDate,
   error,
+  dateOnly = false,
 }: DateTimeFieldProps): React.ReactElement {
   const theme = useAppTheme();
   const { compact } = useResponsiveLayout();
@@ -66,14 +68,17 @@ export function DateTimeField({
           }}
         >
           {picker('date')}
-          {picker('time')}
+          {dateOnly ? null : picker('time')}
         </View>
       ) : (
         <View style={{ flexDirection: compact ? 'column' : 'row', gap: 10 }}>
-          {[
-            { mode: 'date' as const, label: dateLabel },
-            { mode: 'time' as const, label: timeLabel },
-          ].map((item) => (
+          {(dateOnly
+            ? [{ mode: 'date' as const, label: dateLabel }]
+            : [
+                { mode: 'date' as const, label: dateLabel },
+                { mode: 'time' as const, label: timeLabel },
+              ]
+          ).map((item) => (
             <Pressable
               key={item.mode}
               accessibilityRole="button"

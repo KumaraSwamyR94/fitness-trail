@@ -298,6 +298,52 @@ export default function ProfilesScreen(): React.ReactElement {
         </View>
       )}
 
+      <View
+        style={{
+          borderRadius: 20,
+          borderCurve: 'continuous',
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          padding: 16,
+          gap: 10,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              borderCurve: 'continuous',
+              backgroundColor: theme.colors.accentSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AppIcon name="database-sync-outline" color={theme.colors.accent} size={23} />
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: '900' }}>
+              Data & Sync
+            </Text>
+            <Text
+              selectable
+              style={{ color: theme.colors.textMuted, fontSize: 13, lineHeight: 18 }}
+            >
+              Export, import, or move workout and BMI history between devices.
+            </Text>
+          </View>
+        </View>
+        <AppButton
+          label="Open Data & Sync"
+          variant="secondary"
+          icon={{ name: 'swap-horizontal' }}
+          onPress={() => router.push('/profiles/data-sync')}
+          testID="open-data-sync"
+        />
+      </View>
+
       <View style={{ gap: 10 }}>
         <View
           style={{
