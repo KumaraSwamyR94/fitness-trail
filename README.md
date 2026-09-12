@@ -8,7 +8,7 @@ Workout sessions support normal exercises and supersets of two or more ordered e
 
 ## Run locally
 
-Requirements: Node.js 22.23.1, Yarn 1.22.22, and the current Expo Go app. The Node and Yarn versions are pinned in `.nvmrc`, `package.json`, and the lockfile so local development and CI use the same toolchain.
+Requirements: Node.js 22.23.1 or newer, Yarn 1.22.22, and the current Expo Go app. The Node engine range in `package.json` permits newer compatible releases, while `.nvmrc` supplies the version used by local `nvm` workflows and CI. Yarn remains pinned in `package.json` and the lockfile.
 
 ```bash
 nvm use
