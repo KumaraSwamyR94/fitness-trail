@@ -24,6 +24,7 @@ export default function ProfilesLayout(): React.ReactElement {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Profiles' }} />
+      <Stack.Screen name="data-sync" options={{ title: 'Data & Sync' }} />
       <Stack.Screen name="new" options={{ ...sheetOptions, title: 'New Profile' }} />
       <Stack.Screen name="[profileId]" options={{ ...sheetOptions, title: 'Edit Profile' }} />
     </Stack>
