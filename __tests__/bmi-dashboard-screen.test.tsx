@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import React from 'react';
 
 import { bmiRepository } from '@/data/bmi-repository';
@@ -93,6 +94,7 @@ describe('BmiDashboardScreen range averages', () => {
     await waitFor(() => expect(view.getByTestId('average-bmi-value').props.children).toBe('20.0'));
     expect(view.getByTestId('bmi-range-control')).toHaveProp('selectedIndex', 0);
     expect(view.getByTestId('average-weight-value').props.children).toBe('70.00 kg');
+    expect(view.queryByTestId('view-more-bmi-history')).toBeNull();
 
     await fireEvent(view.getByTestId('bmi-metric-control'), 'onChange', {
       nativeEvent: { selectedSegmentIndex: 1 },
@@ -124,5 +126,27 @@ describe('BmiDashboardScreen range averages', () => {
       expect(view.getByTestId('average-bmi-value').props.children).toBe('No data'),
     );
     expect(view.getByTestId('average-weight-value').props.children).toBe('No data');
+  });
+
+  test('shows only five recent measurements and routes View More to full history', async () => {
+    const measurements = Array.from({ length: 6 }, (_, index) =>
+      measurement(`measurement-${index}`, Date.now() - index * 1000, {
+        inputWeight: 70 + index,
+        inputWeightUnit: 'kg',
+        weightKg: 70 + index,
+        weightLb: (70 + index) * 2.20462,
+        bmi: 20 + index,
+      }),
+    );
+    jest.mocked(bmiRepository.listAll).mockResolvedValue(measurements);
+
+    const view = await render(<BmiDashboardScreen />);
+
+    await waitFor(() => expect(view.getByTestId('bmi-history-measurement-0')).toBeTruthy());
+    expect(view.getByTestId('bmi-history-measurement-4')).toBeTruthy();
+    expect(view.queryByTestId('bmi-history-measurement-5')).toBeNull();
+
+    await fireEvent.press(view.getByTestId('view-more-bmi-history'));
+    expect(router.push).toHaveBeenCalledWith('/bmi/history');
   });
 });

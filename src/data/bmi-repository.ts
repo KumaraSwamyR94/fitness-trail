@@ -33,6 +33,17 @@ interface BmiMeasurementRow {
   updated_at: number;
 }
 
+export interface BmiMeasurementCursor {
+  measuredAt: number;
+  createdAt: number;
+  id: string;
+}
+
+export interface BmiMeasurementPage {
+  measurements: BmiMeasurement[];
+  nextCursor: BmiMeasurementCursor | null;
+}
+
 function mapMeasurement(row: BmiMeasurementRow): BmiMeasurement {
   return {
     id: row.id,
@@ -62,16 +73,71 @@ function validate(input: BmiMeasurementInput): void {
 export const bmiRepository = {
   async listAll(db: SQLiteDatabase, profileId: string): Promise<BmiMeasurement[]> {
     const rows = await db.getAllAsync<BmiMeasurementRow>(
-      'SELECT * FROM bmi_measurements WHERE profile_id = ? ORDER BY measured_at DESC, created_at DESC',
+      `SELECT * FROM bmi_measurements WHERE profile_id = ?
+       ORDER BY measured_at DESC, created_at DESC, id DESC`,
       profileId,
     );
     return rows.map(mapMeasurement);
   },
 
+  async listPage(
+    db: SQLiteDatabase,
+    profileId: string,
+    limit: number,
+    cursor: BmiMeasurementCursor | null = null,
+  ): Promise<BmiMeasurementPage> {
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new Error('BMI history page size must be a positive integer.');
+    }
+
+    const pageLimit = limit + 1;
+    const rows = cursor
+      ? await db.getAllAsync<BmiMeasurementRow>(
+          `SELECT * FROM bmi_measurements
+           WHERE profile_id = ? AND (
+             measured_at < ?
+             OR (measured_at = ? AND created_at < ?)
+             OR (measured_at = ? AND created_at = ? AND id < ?)
+           )
+           ORDER BY measured_at DESC, created_at DESC, id DESC
+           LIMIT ?`,
+          profileId,
+          cursor.measuredAt,
+          cursor.measuredAt,
+          cursor.createdAt,
+          cursor.measuredAt,
+          cursor.createdAt,
+          cursor.id,
+          pageLimit,
+        )
+      : await db.getAllAsync<BmiMeasurementRow>(
+          `SELECT * FROM bmi_measurements WHERE profile_id = ?
+           ORDER BY measured_at DESC, created_at DESC, id DESC
+           LIMIT ?`,
+          profileId,
+          pageLimit,
+        );
+    const pageRows = rows.slice(0, limit);
+    const measurements = pageRows.map(mapMeasurement);
+    const lastRow = pageRows.at(-1);
+
+    return {
+      measurements,
+      nextCursor:
+        rows.length > limit && lastRow
+          ? {
+              measuredAt: lastRow.measured_at,
+              createdAt: lastRow.created_at,
+              id: lastRow.id,
+            }
+          : null,
+    };
+  },
+
   async getLatest(db: SQLiteDatabase, profileId: string): Promise<BmiMeasurement | null> {
     const row = await db.getFirstAsync<BmiMeasurementRow>(
       `SELECT * FROM bmi_measurements WHERE profile_id = ?
-       ORDER BY measured_at DESC, created_at DESC LIMIT 1`,
+       ORDER BY measured_at DESC, created_at DESC, id DESC LIMIT 1`,
       profileId,
     );
     return row ? mapMeasurement(row) : null;
