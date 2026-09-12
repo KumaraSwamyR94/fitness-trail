@@ -127,6 +127,26 @@ export function filterMeasurementsByRange(
   );
 }
 
+export function calculateBmiRangeAverages(
+  measurements: BmiMeasurement[],
+  weightUnit: WeightUnit,
+): { averageBmi: number | null; averageWeight: number | null } {
+  if (measurements.length === 0) return { averageBmi: null, averageWeight: null };
+
+  const totals = measurements.reduce(
+    (current, measurement) => ({
+      bmi: current.bmi + measurement.bmi,
+      weight: current.weight + (weightUnit === 'kg' ? measurement.weightKg : measurement.weightLb),
+    }),
+    { bmi: 0, weight: 0 },
+  );
+
+  return {
+    averageBmi: totals.bmi / measurements.length,
+    averageWeight: totals.weight / measurements.length,
+  };
+}
+
 export function getChartDomain(values: number[], metric: BmiMetric): { min: number; max: number } {
   const finiteValues = values.filter(Number.isFinite);
   if (finiteValues.length === 0) return { min: 0, max: 1 };
