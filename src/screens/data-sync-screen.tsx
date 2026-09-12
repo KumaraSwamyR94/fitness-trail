@@ -26,6 +26,7 @@ import {
 import type { TransferCounts, TransferFormat } from '@/features/data-transfer/types';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
+import type { Profile } from '@/types/profile';
 import { toLocalDateKey } from '@/utils/dates';
 import { successFeedback, warningFeedback } from '@/utils/feedback';
 import { track } from '@/utils/telemetry';
@@ -67,17 +68,19 @@ function Choice({
   label,
   selected,
   onPress,
+  role = 'checkbox',
   testID,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  role?: 'checkbox' | 'radio';
   testID?: string;
 }): React.ReactElement {
   const theme = useAppTheme();
   return (
     <Pressable
-      accessibilityRole="checkbox"
+      accessibilityRole={role}
       accessibilityState={{ checked: selected }}
       accessibilityLabel={label}
       onPress={onPress}
@@ -98,7 +101,15 @@ function Choice({
       })}
     >
       <AppIcon
-        name={selected ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+        name={
+          role === 'radio'
+            ? selected
+              ? 'radiobox-marked'
+              : 'radiobox-blank'
+            : selected
+              ? 'checkbox-marked-circle'
+              : 'checkbox-blank-circle-outline'
+        }
         color={selected ? theme.colors.accent : theme.colors.textMuted}
       />
       <Text
@@ -108,6 +119,113 @@ function Choice({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function ProfileListInput({
+  label,
+  helperText,
+  profiles,
+  selectedIds,
+  multiple,
+  onSelect,
+  testID,
+  optionTestIDPrefix,
+}: {
+  label: string;
+  helperText: string;
+  profiles: Pick<Profile, 'id' | 'name'>[];
+  selectedIds: string[];
+  multiple: boolean;
+  onSelect: (id: string) => void;
+  testID: string;
+  optionTestIDPrefix: string;
+}): React.ReactElement {
+  const theme = useAppTheme();
+  const [open, setOpen] = React.useState(false);
+  const selectedProfiles = profiles.filter((profile) => selectedIds.includes(profile.id));
+  const value =
+    selectedProfiles.length === 0
+      ? multiple
+        ? 'Select one or more profiles'
+        : 'Select a profile'
+      : selectedProfiles.length === 1
+        ? selectedProfiles[0].name
+        : `${selectedProfiles.length} profiles selected`;
+
+  return (
+    <View style={{ gap: 8 }}>
+      <Text selectable style={{ color: theme.colors.text, fontWeight: '800' }}>
+        {label}
+      </Text>
+      <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, lineHeight: 18 }}>
+        {helperText}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}, ${value}`}
+        accessibilityHint="Opens the profile list"
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((current) => !current)}
+        testID={testID}
+        style={({ pressed }) => ({
+          minHeight: 52,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          borderRadius: 14,
+          borderCurve: 'continuous',
+          borderWidth: 1,
+          borderColor: open ? theme.colors.accent : theme.colors.border,
+          backgroundColor: theme.colors.surfaceMuted,
+          paddingHorizontal: 13,
+          opacity: pressed ? 0.76 : 1,
+        })}
+      >
+        <AppIcon name="account-multiple-outline" color={theme.colors.textMuted} />
+        <Text
+          numberOfLines={1}
+          testID={`${testID}-value`}
+          style={{ flex: 1, color: theme.colors.text, fontSize: 15, fontWeight: '700' }}
+        >
+          {value}
+        </Text>
+        <AppIcon
+          name={open ? 'chevron-up' : 'chevron-down'}
+          color={theme.colors.textMuted}
+          size={22}
+        />
+      </Pressable>
+      {open ? (
+        <View
+          accessibilityRole={multiple ? undefined : 'radiogroup'}
+          testID={`${testID}-options`}
+          style={{
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            padding: 8,
+            gap: 7,
+          }}
+        >
+          {profiles.map((profile) => (
+            <Choice
+              key={profile.id}
+              label={profile.name}
+              selected={selectedIds.includes(profile.id)}
+              role={multiple ? 'checkbox' : 'radio'}
+              onPress={() => {
+                onSelect(profile.id);
+                if (!multiple) setOpen(false);
+              }}
+              testID={`${optionTestIDPrefix}-${profile.id}`}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -498,27 +616,28 @@ export default function DataSyncScreen(): React.ReactElement {
         title="Export data"
         subtitle="Choose profiles and records, then save or share one portable file."
       >
-        <View style={{ gap: 8 }}>
-          <Text selectable style={{ color: theme.colors.text, fontWeight: '800' }}>
-            Profiles
-          </Text>
-          {profiles.length ? (
-            profiles.map((profile) => (
-              <Choice
-                key={profile.id}
-                label={profile.name}
-                selected={selectedProfileIds.includes(profile.id)}
-                onPress={() => toggleProfile(profile.id)}
-                testID={`export-profile-${profile.id}`}
-              />
-            ))
-          ) : (
+        {profiles.length ? (
+          <ProfileListInput
+            label="Profiles"
+            helperText="Select one or more profiles to include in this export."
+            profiles={profiles}
+            selectedIds={selectedProfileIds}
+            multiple
+            onSelect={toggleProfile}
+            testID="export-profile-input"
+            optionTestIDPrefix="export-profile"
+          />
+        ) : (
+          <View style={{ gap: 8 }}>
+            <Text selectable style={{ color: theme.colors.text, fontWeight: '800' }}>
+              Profiles
+            </Text>
             <Text selectable style={{ color: theme.colors.textMuted, lineHeight: 20 }}>
               There are no profiles to export. You can still import a Fitness Trail JSON backup
               below.
             </Text>
-          )}
-        </View>
+          </View>
+        )}
         <View style={{ gap: 8 }}>
           <Text selectable style={{ color: theme.colors.text, fontWeight: '800' }}>
             Data
@@ -634,27 +753,16 @@ export default function DataSyncScreen(): React.ReactElement {
         subtitle="Inspect every change before anything is written to this device."
       >
         {profiles.length ? (
-          <View style={{ gap: 8 }}>
-            <Text selectable style={{ color: theme.colors.text, fontWeight: '800' }}>
-              Target for a standalone CSV
-            </Text>
-            <Text
-              selectable
-              style={{ color: theme.colors.textMuted, fontSize: 13, lineHeight: 18 }}
-            >
-              JSON and ZIP files carry stable profile identities. A standalone CSV needs an existing
-              target.
-            </Text>
-            {profiles.map((profile) => (
-              <Choice
-                key={profile.id}
-                label={profile.name}
-                selected={targetProfileId === profile.id}
-                onPress={() => setCsvTargetProfileId(profile.id)}
-                testID={`csv-target-${profile.id}`}
-              />
-            ))}
-          </View>
+          <ProfileListInput
+            label="Target for a standalone CSV"
+            helperText="JSON and ZIP files carry stable profile identities. A standalone CSV needs an existing target."
+            profiles={profiles}
+            selectedIds={targetProfileId ? [targetProfileId] : []}
+            multiple={false}
+            onSelect={setCsvTargetProfileId}
+            testID="csv-target-profile-input"
+            optionTestIDPrefix="csv-target"
+          />
         ) : null}
         <AppButton
           label="Choose Import File"

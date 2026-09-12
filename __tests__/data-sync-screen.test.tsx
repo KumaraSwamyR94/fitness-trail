@@ -79,9 +79,13 @@ describe('DataSyncScreen', () => {
   test('defaults to the active profile, both datasets, and shows schema-backed templates', async () => {
     const view = await render(<DataSyncScreen />);
 
+    expect(view.queryByTestId('export-profile-profile-1')).toBeNull();
+    expect(view.getByTestId('export-profile-input-value').props.children).toBe('Alex');
+    await fireEvent.press(view.getByTestId('export-profile-input'));
     expect(view.getByTestId('export-profile-profile-1')).toHaveProp('accessibilityState', {
       checked: true,
     });
+    expect(view.getByTestId('csv-target-profile-input-value').props.children).toBe('Alex');
     expect(view.getByTestId('export-workouts')).toHaveProp('accessibilityState', {
       checked: true,
     });
@@ -104,6 +108,41 @@ describe('DataSyncScreen', () => {
         dateRange: null,
       }),
     );
+  });
+
+  test('selects multiple export profiles through the list input', async () => {
+    mockProfiles = [
+      { id: 'profile-1', name: 'Alex' },
+      { id: 'profile-2', name: 'Sam' },
+    ];
+    mockSelectedProfile = mockProfiles[0];
+    jest.mocked(useProfiles).mockReturnValue({
+      profiles: mockProfiles,
+      selectedProfile: mockSelectedProfile,
+      loading: false,
+      refreshProfiles: mockRefreshProfiles,
+      selectProfile: jest.fn(),
+    } as never);
+    const view = await render(<DataSyncScreen />);
+
+    await fireEvent.press(view.getByTestId('export-profile-input'));
+    await fireEvent.press(view.getByTestId('export-profile-profile-2'));
+
+    expect(view.getByTestId('export-profile-input-value').props.children).toBe(
+      '2 profiles selected',
+    );
+    await waitFor(() =>
+      expect(dataTransferService.countExport).toHaveBeenLastCalledWith(
+        mockDatabase,
+        expect.objectContaining({ profileIds: ['profile-1', 'profile-2'] }),
+      ),
+    );
+
+    expect(view.queryByTestId('csv-target-profile-2')).toBeNull();
+    await fireEvent.press(view.getByTestId('csv-target-profile-input'));
+    await fireEvent.press(view.getByTestId('csv-target-profile-2'));
+    expect(view.getByTestId('csv-target-profile-input-value').props.children).toBe('Sam');
+    expect(view.queryByTestId('csv-target-profile-input-options')).toBeNull();
   });
 
   test('creates, shares, and cleans up an export artifact', async () => {
