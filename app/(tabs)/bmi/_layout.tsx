@@ -26,6 +26,7 @@ export default function BmiLayout(): React.ReactElement {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'BMI' }} />
+      <Stack.Screen name="history" options={{ title: 'BMI & Weight History' }} />
       <Stack.Screen
         name="measurements/new"
         options={{ ...sheetOptions, title: 'New Measurement' }}

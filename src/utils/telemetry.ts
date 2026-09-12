@@ -24,6 +24,11 @@ export type TelemetryEvent =
   | 'profile_created'
   | 'profile_updated'
   | 'profile_deleted'
+  | 'data_export_created'
+  | 'data_import_previewed'
+  | 'data_import_completed'
+  | 'data_import_failed'
+  | 'data_template_exported'
   | 'database_error';
 
 export function track(event: TelemetryEvent, properties: Record<string, unknown> = {}): void {

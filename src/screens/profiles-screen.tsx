@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 
 import { AppButton } from '@/components/app-button';
@@ -13,7 +13,7 @@ import { useProfiles } from '@/data/profile-context';
 import { profileRepository } from '@/data/profile-repository';
 import { useAppTheme } from '@/theme/use-app-theme';
 import { readableContentMaxWidth, useResponsiveLayout } from '@/theme/use-responsive-layout';
-import type { Profile, ProfileOverview } from '@/types/profile';
+import type { ProfileOverview } from '@/types/profile';
 import {
   BMI_CATEGORY_LABELS,
   classifyAdultBmi,
@@ -21,10 +21,7 @@ import {
   formatHeight,
   GENDER_LABELS,
 } from '@/utils/bmi';
-import { successFeedback, warningFeedback } from '@/utils/feedback';
-import { removePrivateProfilePhoto } from '@/utils/profile-media';
 import { profileAgeOnDate } from '@/utils/profiles';
-import { track } from '@/utils/telemetry';
 import { formatWeight } from '@/utils/weight';
 
 function Stat({ label, value }: { label: string; value: string | number }): React.ReactElement {
@@ -72,10 +69,20 @@ export default function ProfilesScreen(): React.ReactElement {
   const theme = useAppTheme();
   const reduceMotion = useReducedMotion();
   const { horizontalPadding } = useResponsiveLayout();
-  const { version, notifyDataChanged } = useDataChange();
-  const { profiles, selectedProfile, loading, refreshProfiles, selectProfile } = useProfiles();
-  const [overview, setOverview] = React.useState<ProfileOverview | null>(null);
-  const [selectingId, setSelectingId] = React.useState<string | null>(null);
+  const { version } = useDataChange();
+  const { profiles, selectedProfile, loading, refreshProfiles } = useProfiles();
+  const [overviewResult, setOverviewResult] = React.useState<{
+    profileId: string;
+    overview: ProfileOverview | null;
+  } | null>(null);
+
+  const overview =
+    selectedProfile && overviewResult?.profileId === selectedProfile.id
+      ? overviewResult.overview
+      : null;
+  const overviewLoading = Boolean(
+    selectedProfile && overviewResult?.profileId !== selectedProfile.id,
+  );
 
   const load = React.useCallback(async () => {
     await refreshProfiles();
@@ -84,65 +91,29 @@ export default function ProfilesScreen(): React.ReactElement {
   useFocusEffect(
     React.useCallback(() => {
       void version;
-      void load();
+      void load().catch(() => undefined);
     }, [load, version]),
   );
 
   React.useEffect(() => {
-    if (selectedProfile)
-      void profileRepository.getOverview(db, selectedProfile.id).then(setOverview);
+    let active = true;
+
+    if (!selectedProfile) return undefined;
+
+    const profileId = selectedProfile.id;
+    void profileRepository
+      .getOverview(db, profileId)
+      .then((nextOverview) => {
+        if (active) setOverviewResult({ profileId, overview: nextOverview });
+      })
+      .catch(() => {
+        if (active) setOverviewResult({ profileId, overview: null });
+      });
+
+    return () => {
+      active = false;
+    };
   }, [db, selectedProfile, version]);
-
-  const choose = async (profile: Profile) => {
-    if (profile.id === selectedProfile?.id) return;
-    setSelectingId(profile.id);
-    try {
-      await selectProfile(profile.id);
-      successFeedback();
-    } catch (error) {
-      Alert.alert(
-        'Profile was not selected',
-        error instanceof Error ? error.message : 'Please try again.',
-      );
-    } finally {
-      setSelectingId(null);
-    }
-  };
-
-  const confirmDelete = async (profile: Profile) => {
-    const stats = await profileRepository.getOverview(db, profile.id);
-    const history = stats
-      ? `${stats.sessionCount} sessions, ${stats.setCount} sets, and ${stats.bmiMeasurementCount} BMI measurements`
-      : 'all of its workout and BMI history';
-    Alert.alert(
-      `Delete ${profile.name}?`,
-      `This permanently deletes ${history}. This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Profile and Data',
-          style: 'destructive',
-          onPress: () => {
-            void profileRepository
-              .remove(db, profile.id)
-              .then(async () => {
-                removePrivateProfilePhoto(profile.photo);
-                await refreshProfiles();
-                notifyDataChanged();
-                warningFeedback();
-                track('profile_deleted', { profileId: profile.id });
-              })
-              .catch((error) =>
-                Alert.alert(
-                  'Profile was not deleted',
-                  error instanceof Error ? error.message : 'Please try again.',
-                ),
-              );
-          },
-        },
-      ],
-    );
-  };
 
   return (
     <ScrollView
@@ -174,7 +145,7 @@ export default function ProfilesScreen(): React.ReactElement {
         </Text>
       </View>
 
-      {loading ? (
+      {loading || overviewLoading ? (
         <ActivityIndicator color={theme.colors.accent} style={{ padding: 40 }} />
       ) : overview && selectedProfile && overview.id === selectedProfile.id ? (
         <Animated.View
@@ -291,128 +262,96 @@ export default function ProfilesScreen(): React.ReactElement {
           }}
         >
           <EmptyState
-            title="Create your first profile"
-            message="Your existing workout and BMI history will be assigned to the first profile you create."
+            title={selectedProfile ? 'Profile details unavailable' : 'No profiles yet'}
+            message={
+              selectedProfile
+                ? 'Please try opening this screen again.'
+                : 'Create a profile to keep workout and BMI history separate.'
+            }
             icon={{ name: 'account-plus-outline' }}
           />
         </View>
       )}
 
-      <View style={{ gap: 10 }}>
-        <View
-          style={{
+      {profiles.length === 0 ? (
+        <AppButton
+          label="Create Profile"
+          icon={{ name: 'account-plus-outline' }}
+          onPress={() => router.push('/profiles/new')}
+          testID="add-profile"
+        />
+      ) : null}
+
+      {profiles.length > 1 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Select Profile"
+          onPress={() => router.push('/profiles/select')}
+          testID="open-profile-selector"
+          style={({ pressed }) => ({
+            minHeight: 56,
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'space-between',
             gap: 12,
+            borderRadius: 16,
+            borderCurve: 'continuous',
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+            paddingHorizontal: 14,
+            opacity: pressed ? 0.78 : 1,
+          })}
+        >
+          <AppIcon name="account-multiple-outline" color={theme.colors.accent} size={22} />
+          <Text selectable style={{ flex: 1, color: theme.colors.text, fontWeight: '800' }}>
+            Select Profile
+          </Text>
+          <AppIcon name="chevron-right" color={theme.colors.textMuted} size={22} />
+        </Pressable>
+      ) : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open Import and Export"
+        onPress={() => router.push('/profiles/data-sync')}
+        testID="open-import-export"
+        style={({ pressed }) => ({
+          minHeight: 84,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          borderRadius: 20,
+          borderCurve: 'continuous',
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: pressed ? theme.colors.surfaceMuted : theme.colors.surface,
+          padding: 16,
+          opacity: pressed ? 0.78 : 1,
+        })}
+      >
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            backgroundColor: theme.colors.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text selectable style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900' }}>
-              Profiles
-            </Text>
-            <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
-              Tap a card to switch.
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add profile"
-            onPress={() => router.push('/profiles/new')}
-            style={({ pressed }) => ({
-              width: 46,
-              height: 46,
-              borderRadius: 15,
-              borderCurve: 'continuous',
-              backgroundColor: theme.colors.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.8 : 1,
-            })}
-          >
-            <AppIcon name="plus" color="#FFFFFF" size={24} />
-          </Pressable>
+          <AppIcon name="swap-horizontal" color={theme.colors.accent} size={23} />
         </View>
-        {profiles.map((profile) => {
-          const active = profile.id === selectedProfile?.id;
-          return (
-            <Pressable
-              key={profile.id}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: active, busy: selectingId === profile.id }}
-              accessibilityLabel={`${profile.name}${active ? ', selected' : ''}`}
-              onPress={() => void choose(profile)}
-              style={({ pressed }) => ({
-                minHeight: 76,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                borderRadius: 18,
-                borderCurve: 'continuous',
-                borderWidth: active ? 2 : 1,
-                borderColor: active ? theme.colors.accent : theme.colors.border,
-                backgroundColor: active ? theme.colors.accentSoft : theme.colors.surface,
-                padding: 12,
-                opacity: pressed ? 0.76 : 1,
-              })}
-            >
-              <ProfileAvatar name={profile.name} photo={profile.photo} size={50} />
-              <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                <Text
-                  selectable
-                  numberOfLines={1}
-                  style={{
-                    color: active ? theme.colors.accent : theme.colors.text,
-                    fontSize: 17,
-                    fontWeight: '800',
-                  }}
-                >
-                  {profile.name}
-                </Text>
-                <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13 }}>
-                  {profileAgeOnDate(profile, new Date())} years ·{' '}
-                  {formatHeight(profile.heightCm, profile.inputHeightUnit)}
-                </Text>
-              </View>
-              {selectingId === profile.id ? (
-                <ActivityIndicator color={theme.colors.accent} />
-              ) : active ? (
-                <AppIcon name="check-circle" color={theme.colors.accent} size={23} />
-              ) : null}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Edit ${profile.name}`}
-                onPress={() =>
-                  router.push({
-                    pathname: '/profiles/[profileId]',
-                    params: { profileId: profile.id },
-                  })
-                }
-                hitSlop={8}
-                style={{ padding: 8 }}
-              >
-                <AppIcon name="pencil-outline" color={theme.colors.textMuted} />
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${profile.name}`}
-                onPress={() => void confirmDelete(profile)}
-                hitSlop={8}
-                style={{ padding: 8 }}
-              >
-                <AppIcon name="trash-can-outline" color={theme.colors.danger} />
-              </Pressable>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <AppButton
-        label="Add Profile"
-        icon={{ name: 'account-plus-outline' }}
-        onPress={() => router.push('/profiles/new')}
-        testID="add-profile"
-      />
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text selectable style={{ color: theme.colors.text, fontSize: 17, fontWeight: '900' }}>
+            Import & Export
+          </Text>
+          <Text selectable style={{ color: theme.colors.textMuted, fontSize: 13, lineHeight: 18 }}>
+            Back up, restore, or transfer workout and BMI history.
+          </Text>
+        </View>
+        <AppIcon name="chevron-right" color={theme.colors.textMuted} size={22} />
+      </Pressable>
     </ScrollView>
   );
 }
