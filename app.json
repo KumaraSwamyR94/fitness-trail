@@ -3,13 +3,13 @@
     "name": "Fitness Trail",
     "slug": "fitness-trail",
     "scheme": "fitness-trail",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "version": "1.1.0",
-      "buildNumber": "2",
+      "version": "1.2.0",
+      "buildNumber": "3",
       "supportsTablet": true,
       "bundleIdentifier": "com.uniquedev.fitnesstrail",
       "infoPlist": {
@@ -18,7 +18,7 @@
     },
     "android": {
       "version": "1.1.0",
-      "versionCode": 2,
+      "versionCode": 3,
       "package": "com.uniquedev.fitnesstrail",
       "adaptiveIcon": {
         "backgroundColor": "#0B1830",
