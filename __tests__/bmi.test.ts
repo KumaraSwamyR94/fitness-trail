@@ -1,6 +1,7 @@
 import type { BmiMeasurement, BmiMeasurementInput } from '@/types/bmi';
 import {
   calculateBmi,
+  calculateBmiRangeAverages,
   centimetersToFeetInches,
   classifyAdultBmi,
   convertWeightValue,
@@ -129,5 +130,49 @@ describe('BMI chart utilities', () => {
     expect(getChartDomain([22.5], 'bmi')).toEqual({ min: 21.5, max: 23.5 });
     expect(getChartDomain([70, 70], 'weight')).toEqual({ min: 66.5, max: 73.5 });
     expect(getChartDomain([], 'bmi')).toEqual({ min: 0, max: 1 });
+  });
+
+  test('calculates BMI and normalized weight averages in the requested unit', () => {
+    const metricMeasurement = measurement('metric', now);
+    const imperialMeasurement: BmiMeasurement = {
+      ...measurement('imperial', now - day),
+      inputWeight: 176.3696,
+      inputWeightUnit: 'lb',
+      weightKg: 80,
+      weightLb: 176.3696,
+      bmi: calculateBmi(80, 175),
+    };
+
+    const metricAverages = calculateBmiRangeAverages(
+      [metricMeasurement, imperialMeasurement],
+      'kg',
+    );
+    expect(metricAverages.averageBmi).toBeCloseTo(
+      (metricMeasurement.bmi + imperialMeasurement.bmi) / 2,
+      10,
+    );
+    expect(metricAverages.averageWeight).toBe(75);
+
+    const imperialAverages = calculateBmiRangeAverages(
+      [metricMeasurement, imperialMeasurement],
+      'lb',
+    );
+    expect(imperialAverages.averageWeight).toBeCloseTo(
+      (metricMeasurement.weightLb + imperialMeasurement.weightLb) / 2,
+      10,
+    );
+  });
+
+  test('returns no averages for an empty range and the measurement values for a single entry', () => {
+    expect(calculateBmiRangeAverages([], 'kg')).toEqual({
+      averageBmi: null,
+      averageWeight: null,
+    });
+
+    const singleMeasurement = measurement('single', now);
+    expect(calculateBmiRangeAverages([singleMeasurement], 'kg')).toEqual({
+      averageBmi: singleMeasurement.bmi,
+      averageWeight: singleMeasurement.weightKg,
+    });
   });
 });

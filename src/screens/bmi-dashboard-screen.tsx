@@ -18,6 +18,7 @@ import type { BmiMeasurement, BmiMetric, BmiRange } from '@/types/bmi';
 import {
   BMI_CATEGORY_LABELS,
   BMI_RANGES,
+  calculateBmiRangeAverages,
   classifyAdultBmi,
   filterMeasurementsByRange,
   formatBmi,
@@ -119,7 +120,7 @@ export default function BmiDashboardScreen(): React.ReactElement {
   const [measurements, setMeasurements] = React.useState<BmiMeasurement[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [metric, setMetric] = React.useState<BmiMetric>('bmi');
-  const [range, setRange] = React.useState<BmiRange>('90D');
+  const [range, setRange] = React.useState<BmiRange>('1W');
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -155,6 +156,10 @@ export default function BmiDashboardScreen(): React.ReactElement {
     [measurements, range],
   );
   const weightUnit = latest?.inputWeightUnit ?? 'kg';
+  const averages = React.useMemo(
+    () => calculateBmiRangeAverages(filteredMeasurements, weightUnit),
+    [filteredMeasurements, weightUnit],
+  );
 
   const confirmDelete = React.useCallback(
     (measurement: BmiMeasurement) => {
@@ -403,6 +408,88 @@ export default function BmiDashboardScreen(): React.ReactElement {
             style={{ height: 40 }}
             testID="bmi-range-control"
           />
+          <View style={{ flexDirection: 'row', gap: 10 }} testID="bmi-range-averages">
+            <View
+              accessible
+              accessibilityRole="summary"
+              accessibilityLabel={`Average BMI, ${averages.averageBmi === null ? 'No data' : formatBmi(averages.averageBmi)}`}
+              style={{
+                flex: 1,
+                borderRadius: 14,
+                borderCurve: 'continuous',
+                backgroundColor: theme.colors.surfaceMuted,
+                padding: 12,
+                gap: 4,
+              }}
+            >
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.textMuted,
+                  fontSize: 11,
+                  fontWeight: '800',
+                  letterSpacing: 0.5,
+                }}
+              >
+                AVERAGE BMI
+              </Text>
+              <Text
+                selectable
+                testID="average-bmi-value"
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 20,
+                  fontWeight: '900',
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
+                {averages.averageBmi === null ? 'No data' : formatBmi(averages.averageBmi)}
+              </Text>
+            </View>
+            <View
+              accessible
+              accessibilityRole="summary"
+              accessibilityLabel={`Average weight, ${
+                averages.averageWeight === null
+                  ? 'No data'
+                  : `${formatWeight(averages.averageWeight)} ${weightUnit}`
+              }`}
+              style={{
+                flex: 1,
+                borderRadius: 14,
+                borderCurve: 'continuous',
+                backgroundColor: theme.colors.surfaceMuted,
+                padding: 12,
+                gap: 4,
+              }}
+            >
+              <Text
+                selectable
+                style={{
+                  color: theme.colors.textMuted,
+                  fontSize: 11,
+                  fontWeight: '800',
+                  letterSpacing: 0.5,
+                }}
+              >
+                AVERAGE WEIGHT
+              </Text>
+              <Text
+                selectable
+                testID="average-weight-value"
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 20,
+                  fontWeight: '900',
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
+                {averages.averageWeight === null
+                  ? 'No data'
+                  : `${formatWeight(averages.averageWeight)} ${weightUnit}`}
+              </Text>
+            </View>
+          </View>
           <BmiTrendChart
             measurements={filteredMeasurements}
             metric={metric}
